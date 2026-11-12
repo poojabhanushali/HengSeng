@@ -25,9 +25,22 @@ async function startServer() {
       appType: 'spa',
     });
     app.use(vite.middlewares);
+
+    // Root route: serve the SPA entry point explicitly so GET / always resolves
+    app.get('/', (req, res) => {
+      res.sendFile(path.resolve(__dirname, 'index.html'));
+    });
+    // SPA fallback: serve index.html for all non-API routes so page refreshes work
+    app.get('*', (req, res) => {
+      res.sendFile(path.resolve(__dirname, 'index.html'));
+    });
   } else {
     // Production mode: static files
     app.use(express.static(path.resolve(__dirname, 'dist')));
+    // Root route: serve the SPA entry point explicitly so GET / always resolves
+    app.get('/', (req, res) => {
+      res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+    });
     app.get('*', (req, res) => {
       res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
     });

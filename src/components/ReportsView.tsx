@@ -7,6 +7,10 @@ export const ReportsView: React.FC = () => {
   const [generating, setGenerating] = useState(false);
   const [selectedExchange, setSelectedExchange] = useState<ExchangeCode | 'ALL'>('ALL');
 
+  const filteredReports = reports.filter(
+    r => selectedExchange === 'ALL' || r.exchange === selectedExchange
+  );
+
   useEffect(() => {
     async function loadReports() {
       try {
@@ -95,7 +99,7 @@ export const ReportsView: React.FC = () => {
 
       {/* Reports List */}
       <div className="space-y-6">
-        {reports.map(report => (
+        {filteredReports.map(report => (
           <div
             key={report.id}
             className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-4"
