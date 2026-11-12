@@ -1,0 +1,1453 @@
+# MASTER PROMPT: BUILD A COMPLETE AI-POWERED SOCIAL SENTIMENT & PRICE PREDICTION PLATFORM
+
+Act as a Senior Full-Stack Software Architect, Python Backend Engineer, AI/ML Engineer, Quantitative Researcher, Data Engineer, UI/UX Designer, and DevOps Engineer.
+
+Your task is to design, develop, test, and deliver a **complete, functional, production-ready full-stack application** based on the following internship assessment.
+
+Do not just create a frontend prototype, static dashboard, or basic ML notebook. Build a complete end-to-end working system with a robust backend, real external API integrations, automated data ingestion, sentiment analysis, machine learning, historical validation, interactive financial visualizations, and comprehensive reporting.
+
+The final application must be professional enough to demonstrate to an AI Agents Development internship evaluator.
+
+---
+
+# 1. PROJECT IDENTITY
+
+**Project Name:** HengSeng Sentiment Price Prediction Agent
+
+**Project Type:** AI-Powered Financial Sentiment Intelligence & Price Prediction Platform
+
+**Primary Objective:**
+
+Develop a Python-based intelligent sentiment pipeline that analyzes social media discussions and financial news for assets across Hong Kong and South Korean exchanges, extracts meaningful sentiment and trading intelligence, and predicts the next-period asset price (n+1).
+
+The system must combine at least two independent social sentiment sources per exchange, together with recent financial news retrieved through Exa.
+
+The platform should transform unstructured social discussions and financial news into structured, measurable, and explainable financial intelligence.
+
+**Core exchanges:**
+- Hong Kong Exchange (HKEX)
+- Korea Exchange (KRX)
+
+**Asset coverage:**
+- 5 different assets per exchange.
+- 10 assets in total.
+- Configurable tickers and exchanges.
+- Collect historical social data covering the latest 10 days.
+
+**Primary integrations:**
+- Apify: Social media scraping and alternative data collection.
+- Exa: Recent and relevant financial news discovery.
+- Python: Data engineering, sentiment analysis, and ML.
+- Market data provider: Historical and current price information.
+
+---
+
+# 2. IMPORTANT DEVELOPMENT PRINCIPLES
+
+Follow these rules throughout the entire project:
+
+1. Build actual working functionality, not visual demonstrations.
+2. Never use hardcoded market prices, fabricated sentiment scores, fake API responses, or invented prediction accuracy.
+3. Every dashboard metric must originate from real backend data or be explicitly marked as unavailable.
+4. Every external API integration must be implemented through a proper service layer.
+5. Use environment variables for API keys and credentials.
+6. Never expose secrets in frontend code, logs, GitHub, or API responses.
+7. Handle missing data, rate limits, API failures, network interruptions, and invalid responses gracefully.
+8. Use modular architecture with proper separation of concerns.
+9. Implement meaningful validation, error handling, logging, and automated testing.
+10. All important operations must be accessible through a clean API.
+11. Make the entire application responsive across desktop, tablet, and mobile.
+12. Do not leave unfinished buttons, fake actions, empty pages, or nonfunctional controls.
+13. Do not silently substitute mock data when a live integration fails.
+14. Clearly distinguish between historical observations, current data, model predictions, and simulated examples.
+15. Prefer simple, maintainable implementations over unnecessary complexity.
+
+If API credentials are unavailable during development, implement the integration completely, provide a clear configuration screen and setup documentation, and report that live data is not connected. Never pretend an API call succeeded.
+
+---
+
+# 3. RECOMMENDED TECHNOLOGY STACK
+
+Use a modern, maintainable technology stack.
+
+## Frontend
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- shadcn/ui or carefully designed reusable components
+- Recharts for interactive financial visualizations
+- TanStack Query for API state management
+- React Router
+- Lucide icons
+
+## Backend
+- Python 3.12+
+- FastAPI
+- Pydantic
+- SQLAlchemy
+- Alembic database migrations
+- REST API architecture
+- Background task processing
+
+## Database
+- PostgreSQL as the primary relational database.
+- Redis for caching and task coordination.
+- Proper indexing and database constraints.
+- Store raw ingestion records and normalized analytical data separately.
+
+## AI / Machine Learning
+- Pandas
+- NumPy
+- Scikit-learn
+- XGBoost or LightGBM when available
+- NLTK / VADER for English sentiment where appropriate.
+- A multilingual transformer sentiment model for Korean and English.
+- SHAP for model explainability where feasible.
+
+## Data Integrations
+- Apify API
+- Exa API
+- A reliable market-data API with documented access and licensing.
+
+Choose a suitable market-data provider based on actual availability of Hong Kong and South Korean exchange data. Do not assume that a free provider supports every exchange or offers real-time prices.
+
+## Infrastructure
+- Docker
+- Docker Compose
+- Environment-based configuration
+- GitHub Actions for CI
+- Structured logging
+- Automated tests
+
+Use compatible, stable package versions and generate proper dependency files.
+
+---
+
+# 4. COMPLETE APPLICATION ARCHITECTURE
+
+Create a modular project with these main layers:
+
+1. Frontend presentation layer.
+2. Backend API layer.
+3. Business logic and orchestration layer.
+4. External integration layer.
+5. Data ingestion and processing layer.
+6. Sentiment intelligence layer.
+7. Machine learning and prediction layer.
+8. Database and persistence layer.
+9. Background task execution layer.
+10. Reporting and analytics layer.
+
+Implement proper dependency injection, reusable services, database sessions, schemas, repositories, and service classes.
+
+Avoid putting all application logic into one large Python file.
+
+---
+
+# 5. DATA INGESTION ENGINE
+
+This is one of the most important parts of the assignment.
+
+Build a functional ingestion pipeline that collects social discussions and financial news for 10 selected assets across both exchanges.
+
+## A. Hong Kong Exchange (HKEX)
+
+Select five liquid, recognizable Hong Kong-listed assets.
+
+Suggested initial universe:
+
+- 0700.HK – Tencent Holdings
+- 9988.HK – Alibaba Group
+- 0005.HK – HSBC Holdings
+- 3690.HK – Meituan
+- 1810.HK – Xiaomi Corporation
+
+Validate ticker identifiers and market-data provider compatibility before ingestion.
+
+## B. Korea Exchange (KRX)
+
+Select five recognizable Korean-listed assets.
+
+Suggested initial universe:
+
+- 005930.KS – Samsung Electronics
+- 000660.KS – SK Hynix
+- 035420.KS – NAVER
+- 035720.KS – Kakao
+- 005380.KS – Hyundai Motor
+
+Validate ticker identifiers and market-data provider compatibility before ingestion.
+
+Allow administrators to modify the asset universe.
+
+## C. Social Data Sources
+
+The assignment requires at least two independent social sentiment sources for each exchange.
+
+Implement a configurable source registry.
+
+### Hong Kong sources
+
+Use at least two of:
+
+1. LIHKG
+2. Telegram
+3. Futu / Moomoo Community
+4. AAStocks
+5. ETNet
+
+Recommended implementation:
+
+- LIHKG through an appropriate Apify actor or authorized data access method.
+- Telegram through an authorized Telegram API integration or suitable Apify actor.
+
+### South Korea sources
+
+Use at least two of:
+
+1. Naver Finance Stock Discussion Boards
+2. Daum Finance Forums
+3. Telegram channels
+4. KakaoTalk Open Chats
+5. Blind
+
+Recommended implementation:
+
+- Naver Finance discussion boards.
+- Telegram channels.
+
+Important:
+- Check whether the source is publicly accessible.
+- Respect website terms, robots restrictions, privacy, rate limits, and platform policies.
+- Use authorized APIs or legitimate Apify actors.
+- Do not bypass authentication, access restrictions, CAPTCHAs, or private groups.
+- Do not assume that every source has an accessible Apify actor.
+- Implement source adapters independently so unavailable sources can be replaced without changing the core pipeline.
+
+If a source cannot be accessed legitimately, document the limitation and implement an alternative compliant adapter.
+
+## D. Apify Integration
+
+Create a reusable Apify client.
+
+Required functionality:
+
+- Authenticate through APIFY_API_TOKEN.
+- Run configured actors.
+- Pass ticker and keyword search parameters.
+- Retrieve actor execution results.
+- Handle asynchronous actor runs.
+- Poll execution status.
+- Retrieve dataset items.
+- Support pagination.
+- Handle rate limits and retries.
+- Save ingestion metadata.
+- Record source-level execution status.
+
+Use configurable actor IDs.
+
+Store actor configuration separately from business logic.
+
+For each social post, extract:
+
+- Post ID.
+- Exchange.
+- Ticker.
+- Asset name.
+- Source platform.
+- Post URL, when available.
+- Author identifier or public username, when permitted.
+- Author follower count, when available.
+- Post text.
+- Original language.
+- Published timestamp.
+- UTC-normalized timestamp.
+- Likes.
+- Comments.
+- Reposts / shares.
+- Views.
+- Engagement score.
+- Search keywords.
+- Collection timestamp.
+
+Do not invent unavailable engagement values.
+
+Handle duplicate posts through unique source IDs or reliable deduplication hashes.
+
+## E. Collection Window
+
+Collect social posts from the latest 10 days.
+
+Requirements:
+
+- Store all timestamps in UTC.
+- Preserve the original timestamp.
+- Convert timestamps correctly.
+- Normalize all records.
+- Detect duplicates.
+- Filter invalid records.
+- Track missing fields.
+- Align records with asset trading sessions.
+- Respect market holidays and exchange time zones.
+
+Hong Kong timezone: Asia/Hong_Kong.
+
+South Korea timezone: Asia/Seoul.
+
+Maintain a clear distinction between UTC storage and local market-session reporting.
+
+---
+
+# 6. EXA NEWS INTELLIGENCE ENGINE
+
+Integrate Exa as the primary financial news discovery engine.
+
+Create an Exa service with:
+
+- API authentication.
+- Ticker-specific search.
+- Company-name search.
+- Financial keyword search.
+- Recent news retrieval.
+- Relevance filtering.
+- Publication timestamp extraction.
+- Duplicate article detection.
+- Article metadata storage.
+- Search history.
+
+Search queries should consider:
+
+- Company name.
+- Stock ticker.
+- Stock symbol.
+- Earnings.
+- Revenue.
+- Financial results.
+- Management announcements.
+- Regulatory developments.
+- Market outlook.
+- Industry developments.
+- Mergers and acquisitions.
+- Product launches.
+- Analyst outlook.
+
+For every article, store:
+
+- Article title.
+- URL.
+- Publisher/domain.
+- Publication timestamp.
+- Retrieval timestamp.
+- Search query.
+- Asset ticker.
+- Asset name.
+- Relevance score, if provided.
+- Article summary or available text.
+- Sentiment score.
+- Sentiment label.
+
+Perform duplicate detection using canonical URLs and content similarity.
+
+Do not fabricate article summaries or article text.
+
+Use Exa's documented API capabilities and handle unavailable fields gracefully.
+
+---
+
+# 7. DATA PROCESSING AND FEATURE ENGINEERING
+
+Create a dedicated processing pipeline that transforms raw social and news data into structured analytical features.
+
+## Social sentiment features
+
+For each ticker and time interval, calculate:
+
+- Total mentions.
+- Positive mentions.
+- Negative mentions.
+- Neutral mentions.
+- Average sentiment.
+- Weighted sentiment.
+- Sentiment momentum.
+- Mention growth.
+- Engagement-weighted sentiment.
+- Author influence score.
+- Unique author count.
+- Positive-to-negative ratio.
+- Social activity volatility.
+- Source-level sentiment.
+
+## News sentiment features
+
+Calculate:
+
+- Total news articles.
+- Positive news ratio.
+- Negative news ratio.
+- Neutral news ratio.
+- Average news sentiment.
+- News relevance-weighted sentiment.
+- News sentiment momentum.
+- News volume changes.
+- News-social sentiment disagreement.
+
+## Engagement-weighted sentiment
+
+Design a transparent weighting method using available engagement metrics.
+
+For example:
+
+- Likes.
+- Comments.
+- Shares.
+- Views.
+- Author follower counts.
+
+Use logarithmic scaling or normalization to prevent viral posts from dominating the dataset.
+
+Document the mathematical formula and configurable parameters.
+
+Avoid treating follower counts as proof of credibility.
+
+## Temporal alignment
+
+Create daily or appropriately granular feature windows.
+
+Align sentiment features with price bars using UTC timestamps and exchange trading calendars.
+
+Most importantly:
+
+Only use information that was available at the prediction timestamp.
+
+Avoid data leakage from future social posts, news articles, or price information.
+
+---
+
+# 8. ADVANCED ASSET INTELLIGENCE EXTRACTION
+
+For every asset, generate a structured intelligence profile.
+
+Required fields:
+
+- Ticker.
+- Asset name.
+- Exchange.
+- Current/latest available price.
+- Currency.
+- Price timestamp.
+- Daily price change.
+- Percentage price change.
+- Overall sentiment.
+- Sentiment score.
+- Sentiment direction.
+- Social mentions.
+- News mentions.
+- Sentiment confidence.
+- Prediction direction.
+- Position signal, if any.
+- Support levels.
+- Resistance levels.
+- Market trend.
+- Risk classification.
+
+## Sentiment score
+
+Create a standardized score from -100 to +100.
+
+Interpretation:
+
+- -100 to -60: Extremely bearish.
+- -60 to -20: Bearish.
+- -20 to +20: Neutral.
+- +20 to +60: Bullish.
+- +60 to +100: Extremely bullish.
+
+Make thresholds configurable.
+
+## Direction
+
+Possible labels:
+
+- Strong Bullish.
+- Bullish.
+- Neutral.
+- Bearish.
+- Strong Bearish.
+
+## Position intelligence
+
+Extract position-related language from discussions when available.
+
+Examples:
+
+- Long.
+- Short.
+- Buying.
+- Selling.
+- Holding.
+- Accumulating.
+- Taking profit.
+- Stop-loss.
+
+Distinguish actual expressed positions from inferred sentiment.
+
+Never claim that a user holds a financial position simply because their message expresses a bullish opinion.
+
+## Support and resistance
+
+Calculate technical support and resistance levels from historical market prices.
+
+Use appropriate techniques such as:
+
+- Swing highs and lows.
+- Pivot points.
+- Rolling highs and lows.
+- Volume-based levels where reliable volume data exists.
+
+Show the calculation method and timestamp.
+
+Do not generate arbitrary levels.
+
+---
+
+# 9. AI SENTIMENT ANALYSIS ENGINE
+
+Build a multilingual sentiment engine.
+
+It must support:
+
+- English.
+- Korean.
+- Traditional Chinese.
+- Simplified Chinese where applicable.
+
+Implement language detection.
+
+Use appropriate sentiment models based on detected language.
+
+A practical architecture:
+
+1. Clean text.
+2. Remove irrelevant noise while preserving financial meaning.
+3. Detect language.
+4. Identify ticker and company references.
+5. Run sentiment classification.
+6. Extract financial context.
+7. Calculate confidence.
+8. Aggregate results.
+
+The model should understand financial expressions such as:
+
+- Bullish.
+- Bearish.
+- Breakout.
+- Resistance.
+- Accumulation.
+- Sell-off.
+- Overvalued.
+- Undervalued.
+- Earnings beat.
+- Earnings miss.
+- Short squeeze.
+- Profit booking.
+
+Support sarcasm and ambiguous expressions as uncertainty rather than pretending sentiment classification is always correct.
+
+Provide explainability:
+
+- Original post.
+- Predicted sentiment.
+- Confidence.
+- Relevant extracted phrases.
+- Model used.
+
+Do not expose private user data.
+
+---
+
+# 10. PRICE PREDICTION MACHINE LEARNING ENGINE
+
+Build a real predictive modeling pipeline.
+
+The objective is to predict the next-period price (n+1).
+
+Define n+1 clearly.
+
+For example:
+
+- Daily mode: next trading session's closing price.
+- Intraday mode: next available price bar.
+
+Make the prediction horizon configurable.
+
+## Candidate models
+
+Evaluate:
+
+1. Naive persistence baseline.
+2. Historical moving-average baseline.
+3. Linear Regression.
+4. Random Forest Regressor.
+5. Gradient Boosting.
+6. XGBoost or LightGBM, if available and suitable.
+
+Select the final model based on out-of-sample performance, not training accuracy.
+
+## Features
+
+Use:
+
+- Historical closing prices.
+- Open/high/low/close.
+- Trading volume.
+- Returns.
+- Moving averages.
+- RSI.
+- MACD.
+- Volatility.
+- Momentum.
+- Social sentiment.
+- Social mention volume.
+- Engagement-weighted sentiment.
+- News sentiment.
+- News volume.
+- Sentiment momentum.
+- News-social disagreement.
+
+Only include features that are available at the prediction timestamp.
+
+## Validation
+
+This requirement is critical.
+
+Implement rigorous out-of-sample validation.
+
+Use:
+
+- Chronological train/test split.
+- Walk-forward validation.
+- Expanding or rolling time-series validation.
+- Purging or embargo where necessary to prevent overlapping-label leakage.
+- Training-only preprocessing.
+- No random shuffling of time-series observations.
+
+Compare performance against the naive persistence baseline.
+
+## Evaluation metrics
+
+Calculate:
+
+- MAE.
+- RMSE.
+- MAPE, when appropriate.
+- Directional accuracy.
+- R².
+- Prediction error.
+- Baseline improvement.
+
+Display actual versus predicted prices.
+
+Create visual backtesting charts.
+
+Do not report impressive accuracy unless it is genuinely measured on unseen data.
+
+If historical data is insufficient, clearly indicate that the model cannot yet be validated.
+
+## Prediction output
+
+For each ticker, return:
+
+- Current/latest observed price.
+- Predicted next-period price.
+- Predicted percentage change.
+- Predicted direction.
+- Prediction timestamp.
+- Target timestamp.
+- Model name.
+- Confidence or uncertainty interval, if statistically justified.
+- Recent model performance.
+- Relevant sentiment factors.
+- Important contributing features.
+
+Never present a point prediction as a guaranteed future price.
+
+Explain the difference between model confidence and actual probability of a profitable trade.
+
+---
+
+# 11. AUTOMATED AI AGENT ORCHESTRATION
+
+Build the system as a coordinated set of intelligent agents or modular workers.
+
+Suggested agents:
+
+### Agent 1: Market Data Agent
+Collects historical and latest available market data.
+
+### Agent 2: Social Scraping Agent
+Coordinates Apify-based collection from configured sources.
+
+### Agent 3: News Research Agent
+Uses Exa to discover relevant news.
+
+### Agent 4: Sentiment Analysis Agent
+Analyzes multilingual social and news sentiment.
+
+### Agent 5: Financial Intelligence Agent
+Extracts ticker-specific direction, position language, and technical levels.
+
+### Agent 6: Prediction Agent
+Runs feature engineering, model training, forecasting, and validation.
+
+### Agent 7: Reporting Agent
+Generates exchange-wise rankings and analytical reports.
+
+### Agent 8: Quality Control Agent
+Checks missing data, stale information, suspicious results, data leakage risks, and failed integrations.
+
+Create a central orchestrator to coordinate execution.
+
+Every agent must have defined inputs, outputs, error handling, and logging.
+
+Avoid adding an unnecessary LLM agent where deterministic Python logic is more reliable.
+
+The system should work without requiring an expensive paid LLM for every post.
+
+---
+
+# 12. PREMIUM DASHBOARD AND UI/UX DESIGN
+
+Create a visually outstanding financial intelligence dashboard.
+
+Design direction:
+
+**Premium + Minimal + Elegant + Modern + Professional Financial SaaS.**
+
+The interface should look like a sophisticated quantitative research terminal rather than a generic admin template.
+
+## Design language
+
+- Clean white / warm off-white background.
+- Dark charcoal typography.
+- Subtle neutral borders.
+- Restrained accent colors.
+- Green for positive movements.
+- Red for negative movements.
+- Muted gray for neutral values.
+- Professional typography.
+- Consistent spacing.
+- Subtle shadows.
+- Beautiful data visualizations.
+- Smooth, restrained animations.
+- Clear visual hierarchy.
+
+Avoid:
+
+- Excessive gradients.
+- Neon colors.
+- Overloaded dashboards.
+- Unnecessary decorative elements.
+- Emoji-based navigation.
+- Giant cards.
+- Excessive rounded corners.
+- Cluttered tables.
+- Generic AI-generated dashboard appearance.
+
+Implement both light and dark themes.
+
+Ensure mobile responsiveness.
+
+## Main application layout
+
+Sidebar navigation:
+
+1. Overview.
+2. Exchange Intelligence.
+3. Asset Explorer.
+4. Social Sentiment.
+5. News Intelligence.
+6. Price Predictions.
+7. Model Performance.
+8. Backtesting.
+9. Reports.
+10. Data Sources.
+11. Pipeline Monitor.
+12. Settings.
+
+Top navigation:
+
+- Application logo.
+- Current exchange selector.
+- Date range selector.
+- Data freshness indicator.
+- Theme toggle.
+- User profile.
+
+## A. Overview Dashboard
+
+Display:
+
+- Total monitored assets.
+- Total social mentions.
+- Total news articles.
+- Overall market sentiment.
+- Bullish assets.
+- Bearish assets.
+- Neutral assets.
+- Latest ingestion status.
+- Latest model execution.
+- Prediction summary.
+
+Add:
+
+- Market sentiment distribution.
+- Mentions over time.
+- Sentiment trends.
+- Exchange comparison.
+- Top trending assets.
+- Recent news.
+- Latest predictions.
+
+## B. Exchange Intelligence
+
+Create two exchange views:
+
+**Hong Kong / HKEX**
+
+**South Korea / KRX**
+
+Each exchange should display:
+
+- Five monitored assets.
+- Total social mentions.
+- Sentiment distribution.
+- News volume.
+- Average sentiment.
+- Prediction direction.
+- Market movement.
+
+## C. Asset Ranking Table
+
+This is a core assessment requirement.
+
+Create a sortable and filterable table.
+
+Columns:
+
+- Rank.
+- Ticker.
+- Asset name.
+- Exchange.
+- Current price.
+- Price change.
+- Social mentions.
+- News count.
+- Sentiment score.
+- Sentiment direction.
+- Predicted price.
+- Predicted change.
+- Prediction direction.
+- Last updated.
+
+Allow sorting by:
+
+- Social mentions.
+- Sentiment score.
+- Bullishness.
+- Bearishness.
+- Prediction percentage.
+- Price movement.
+
+Create separate rankings for HKEX and KRX.
+
+Add search, pagination, filters, and export functionality.
+
+## D. Asset Details
+
+Clicking an asset should open a comprehensive asset intelligence page.
+
+Include:
+
+- Asset overview.
+- Price history.
+- Candlestick chart where supported.
+- Volume chart.
+- Social sentiment trend.
+- News sentiment trend.
+- Mention volume.
+- Prediction chart.
+- Support and resistance.
+- Recent social posts.
+- Recent news articles.
+- Model explanation.
+- Historical prediction performance.
+
+## E. Social Sentiment Explorer
+
+Display:
+
+- Source breakdown.
+- Positive / negative / neutral posts.
+- Most discussed tickers.
+- Trending keywords.
+- Engagement distribution.
+- Author influence distribution.
+- Sentiment over time.
+- Recent posts with source links.
+
+Allow filtering by exchange, ticker, platform, language, and sentiment.
+
+## F. News Intelligence
+
+Display:
+
+- Latest news.
+- Asset association.
+- Publisher.
+- Publication time.
+- Sentiment.
+- Relevance.
+- Article link.
+- News impact summary.
+
+## G. Prediction Center
+
+Display:
+
+- Next-period predicted price.
+- Current observed price.
+- Predicted percentage change.
+- Direction.
+- Model used.
+- Prediction timestamp.
+- Target timestamp.
+- Historical performance.
+
+Show actual and predicted prices on a chart.
+
+Clearly label forecasts as experimental model outputs.
+
+## H. Model Performance
+
+Display:
+
+- MAE.
+- RMSE.
+- Directional accuracy.
+- Baseline comparison.
+- Model comparison.
+- Walk-forward validation results.
+- Training dataset size.
+- Latest training timestamp.
+- Feature importance.
+- Model version.
+
+## I. Pipeline Monitor
+
+Show each pipeline stage:
+
+- Market data ingestion.
+- Social scraping.
+- News collection.
+- Text processing.
+- Sentiment analysis.
+- Feature engineering.
+- Model training.
+- Prediction generation.
+- Report generation.
+
+Display:
+
+- Running / completed / failed.
+- Execution duration.
+- Records collected.
+- Error messages.
+- Last successful execution.
+
+## J. Reports
+
+Generate exchange-wise visual reports.
+
+Include:
+
+- Asset rankings.
+- Social mention distribution.
+- Sentiment rankings.
+- News sentiment.
+- Prediction results.
+- Backtesting metrics.
+- Important findings.
+
+Support:
+
+- PDF export.
+- CSV export.
+- Excel export if practical.
+
+Reports must use actual stored data.
+
+---
+
+# 13. BACKEND API REQUIREMENTS
+
+Implement clean REST endpoints.
+
+Suggested endpoint structure:
+
+### Assets
+GET /api/v1/assets
+GET /api/v1/assets/{ticker}
+GET /api/v1/assets/{ticker}/prices
+GET /api/v1/assets/{ticker}/sentiment
+GET /api/v1/assets/{ticker}/predictions
+
+### Exchanges
+GET /api/v1/exchanges
+GET /api/v1/exchanges/{exchange}/overview
+GET /api/v1/exchanges/{exchange}/rankings
+
+### Social
+GET /api/v1/social/posts
+GET /api/v1/social/sentiment
+GET /api/v1/social/trends
+
+### News
+GET /api/v1/news
+GET /api/v1/news/{id}
+
+### Predictions
+GET /api/v1/predictions
+POST /api/v1/predictions/run
+GET /api/v1/predictions/performance
+GET /api/v1/predictions/backtesting
+
+### Ingestion
+POST /api/v1/ingestion/run
+GET /api/v1/ingestion/status
+GET /api/v1/ingestion/history
+
+### Agents
+POST /api/v1/agents/run
+GET /api/v1/agents/status
+
+### Reports
+GET /api/v1/reports
+POST /api/v1/reports/generate
+GET /api/v1/reports/{id}/download
+
+### Settings
+GET /api/v1/settings
+PUT /api/v1/settings
+
+Implement:
+
+- Pagination.
+- Filtering.
+- Sorting.
+- Input validation.
+- Consistent error responses.
+- Authentication and authorization.
+- Rate limiting.
+- API documentation.
+- Request logging.
+- Health checks.
+
+Use appropriate HTTP status codes.
+
+Do not expose internal exceptions or sensitive configuration through API responses.
+
+---
+
+# 14. DATABASE DESIGN
+
+Design normalized PostgreSQL tables.
+
+Suggested entities:
+
+- users
+- roles
+- assets
+- exchanges
+- data_sources
+- ingestion_jobs
+- ingestion_logs
+- social_posts
+- social_authors
+- news_articles
+- sentiment_results
+- price_bars
+- engineered_features
+- model_versions
+- model_training_runs
+- predictions
+- prediction_evaluations
+- backtest_results
+- reports
+- system_settings
+
+Add:
+
+- Primary keys.
+- Foreign keys.
+- Unique constraints.
+- Appropriate indexes.
+- Timestamps.
+- Audit fields.
+- Data provenance.
+- Database migrations.
+
+Prevent duplicate social posts and duplicate news articles.
+
+Store raw data and processed results separately.
+
+Design the schema to support future expansion to additional exchanges and assets.
+
+---
+
+# 15. SECURITY AND RELIABILITY
+
+Implement:
+
+- Secure environment-variable handling.
+- Password hashing.
+- JWT-based authentication or secure session authentication.
+- Role-based access control.
+- Input sanitization.
+- SQL injection protection through ORM usage.
+- CORS restrictions.
+- API rate limiting.
+- Secure error handling.
+- Secret masking in logs.
+- Request validation.
+- Database transaction management.
+- Background-job retries.
+- Timeouts.
+- External API failure handling.
+- Audit logging.
+
+Never commit .env files.
+
+Provide .env.example with all required variables.
+
+---
+
+# 16. AUTOMATION AND SCHEDULING
+
+Create configurable background jobs.
+
+Suggested schedules:
+
+- Social ingestion: configurable, several times per day.
+- News ingestion: configurable periodic updates.
+- Market data ingestion: according to provider availability.
+- Sentiment processing: after new data arrives.
+- Feature engineering: after ingestion.
+- Model retraining: configurable.
+- Prediction generation: after market data and feature updates.
+- Report generation: on demand and optionally scheduled.
+
+Do not assume that exchanges operate continuously.
+
+Use exchange trading calendars.
+
+Ensure jobs are idempotent.
+
+Prevent duplicate simultaneous executions.
+
+Allow users to trigger ingestion and prediction jobs manually from the dashboard.
+
+---
+
+# 17. TESTING REQUIREMENTS
+
+Write meaningful automated tests.
+
+## Backend
+- API tests.
+- Database tests.
+- Authentication tests.
+- Apify integration tests.
+- Exa integration tests.
+- Data validation tests.
+- Sentiment analysis tests.
+- Feature engineering tests.
+- Model training tests.
+- Prediction tests.
+- Data leakage tests.
+
+## Frontend
+- Component tests.
+- API integration tests.
+- Routing tests.
+- Form validation tests.
+- Loading and error states.
+- Responsive layout tests.
+
+## End-to-end
+Test the complete workflow:
+
+1. Configure API credentials.
+2. Select exchange and assets.
+3. Run social ingestion.
+4. Retrieve recent news.
+5. Fetch market prices.
+6. Process and normalize data.
+7. Calculate sentiment.
+8. Generate analytical features.
+9. Train and evaluate models.
+10. Generate next-period predictions.
+11. Display results in the dashboard.
+12. Generate an exchange-wise report.
+
+Do not mark tests as passed unless they actually execute successfully.
+
+---
+
+# 18. GITHUB AND DEPLOYMENT READINESS
+
+Create a professional repository.
+
+Include:
+
+- README.md
+- .env.example
+- .gitignore
+- requirements.txt or pyproject.toml
+- package.json
+- Dockerfile(s)
+- docker-compose.yml
+- Database migrations.
+- Backend source.
+- Frontend source.
+- Test suite.
+- API documentation.
+- Architecture documentation.
+- Setup instructions.
+- Model methodology documentation.
+- Data-source documentation.
+
+README must explain:
+
+1. Project overview.
+2. Architecture.
+3. Features.
+4. Technology stack.
+5. API integrations.
+6. Required credentials.
+7. Apify actor configuration.
+8. Exa setup.
+9. Market-data provider setup.
+10. Local installation.
+11. Database setup.
+12. Running the backend.
+13. Running the frontend.
+14. Running ingestion.
+15. Training models.
+16. Generating predictions.
+17. Running tests.
+18. Deployment.
+
+Provide a clear architecture diagram using Mermaid.
+
+Add CI checks for backend tests, frontend builds, and linting.
+
+---
+
+# 19. REQUIRED ENVIRONMENT VARIABLES
+
+Create a complete .env.example.
+
+Include variables such as:
+
+APP_ENV=
+SECRET_KEY=
+DATABASE_URL=
+REDIS_URL=
+
+APIFY_API_TOKEN=
+APIFY_LIHKG_ACTOR_ID=
+APIFY_TELEGRAM_ACTOR_ID=
+APIFY_NAVER_ACTOR_ID=
+
+EXA_API_KEY=
+
+MARKET_DATA_API_KEY=
+MARKET_DATA_PROVIDER=
+
+JWT_SECRET_KEY=
+CORS_ORIGINS=
+
+Do not hardcode real credentials.
+
+Only configure actor IDs that have been verified and are actually used.
+
+Document any provider-specific additional variables.
+
+---
+
+# 20. REQUIRED FINAL DELIVERABLES
+
+The completed project must provide:
+
+1. Fully working React frontend.
+2. Fully working Python FastAPI backend.
+3. PostgreSQL database and migrations.
+4. Apify integration.
+5. Exa news integration.
+6. At least two social sources per exchange, implemented and documented.
+7. Historical market-data integration.
+8. Multilingual sentiment analysis.
+9. Financial feature engineering.
+10. Next-period price prediction.
+11. Walk-forward out-of-sample validation.
+12. Model evaluation and comparison.
+13. Exchange-wise ranking dashboard.
+14. Interactive asset details.
+15. Visual sentiment analytics.
+16. Backtesting reports.
+17. PDF/CSV export.
+18. Pipeline monitoring.
+19. Secure configuration.
+20. Automated tests.
+21. Docker-based setup.
+22. Complete GitHub-ready documentation.
+
+---
+
+# 21. IMPLEMENTATION STRATEGY
+
+Work in structured phases.
+
+### Phase 1: Architecture and project setup
+- Analyze requirements.
+- Design architecture.
+- Initialize repository.
+- Set up frontend and backend.
+- Configure PostgreSQL and Redis.
+- Create database schema.
+
+### Phase 2: Data integrations
+- Implement Apify client.
+- Implement source adapters.
+- Implement Exa client.
+- Implement market-data client.
+- Validate real API responses.
+
+### Phase 3: Data pipeline
+- Normalize records.
+- Deduplicate posts and news.
+- Align timestamps.
+- Store historical prices.
+- Create processing pipelines.
+
+### Phase 4: AI and ML
+- Implement multilingual sentiment analysis.
+- Implement feature engineering.
+- Train baseline models.
+- Train candidate predictive models.
+- Implement walk-forward validation.
+- Evaluate and select models.
+- Generate explainable predictions.
+
+### Phase 5: Frontend
+- Create design system.
+- Build application shell.
+- Implement dashboards.
+- Build asset explorer.
+- Build sentiment and news pages.
+- Build prediction and backtesting pages.
+- Connect every feature to real backend APIs.
+
+### Phase 6: Reporting and automation
+- Implement agent orchestration.
+- Implement scheduled jobs.
+- Implement reports.
+- Add PDF and CSV exports.
+
+### Phase 7: Testing and deployment
+- Run backend tests.
+- Run frontend tests.
+- Run integration tests.
+- Fix bugs.
+- Verify complete workflows.
+- Prepare deployment documentation.
+
+---
+
+# 22. STRICT QUALITY CONTROL
+
+Before declaring the project complete, verify:
+
+- Can the backend start successfully?
+- Can the frontend start successfully?
+- Can the database connect?
+- Do database migrations run?
+- Are API credentials handled securely?
+- Can Apify execute the configured actors?
+- Can Exa retrieve recent relevant articles?
+- Are at least two social sources configured and functional per exchange?
+- Are timestamps correctly normalized?
+- Are duplicates handled?
+- Is sentiment generated from actual collected content?
+- Are prices retrieved from an actual provider?
+- Is the ML pipeline trained on valid historical observations?
+- Is future information excluded from training features?
+- Is out-of-sample validation chronological?
+- Are predictions generated successfully?
+- Are dashboard values fetched from the backend?
+- Do filters, sorting, exports, and navigation work?
+- Are loading, empty, and failure states handled?
+- Does the application work on mobile?
+- Do automated tests pass?
+- Does the production build succeed?
+
+Maintain a checklist and report the real status of each item.
+
+If any requirement cannot be completed because of API restrictions, unavailable data, missing credentials, or provider limitations, explain the limitation and provide the best legitimate implementation possible.
+
+Do not falsely claim full completion.
+
+---
+
+# 23. FINAL EXECUTION INSTRUCTIONS
+
+Start by analyzing the complete assessment and producing a concise technical architecture and implementation plan.
+
+Then proceed to build the actual application.
+
+**Do not stop after writing the architecture or creating a UI mockup.**
+
+Create the actual files, implement the backend, implement the frontend, configure integrations, write the ML pipeline, connect the database, and run tests.
+
+Make reasonable engineering decisions independently instead of repeatedly asking me about minor implementation choices.
+
+Prioritize a complete working end-to-end workflow over unnecessary features.
+
+If the environment supports terminal access, use it to install dependencies, run services, execute tests, inspect errors, and fix problems.
+
+If API credentials are missing, continue developing the real integration using configurable environment variables and clearly documented setup instructions.
+
+At the end, provide:
+
+1. Complete project folder structure.
+2. List of implemented features.
+3. Exact commands to install and run the project.
+4. Required API credentials and where to obtain them.
+5. Apify actor IDs actually used or required.
+6. Supported social sources and their implementation status.
+7. Exa integration status.
+8. Market-data provider and its limitations.
+9. Database setup instructions.
+10. ML training and prediction commands.
+11. Test execution results.
+12. Known limitations and remaining work.
+13. GitHub publishing instructions.
+
+**FINAL EXPECTATION:**
+
+Deliver a professional, complete, secure, maintainable, scalable, and genuinely functional AI-powered financial sentiment and next-period price prediction platform that demonstrates practical skills in Python, AI agents, data engineering, API integration, machine learning, time-series forecasting, and full-stack development.
+
+The final result should be impressive in both engineering quality and presentation, while remaining scientifically honest about the limitations of financial sentiment analysis and price prediction.
+
+Build it as a real software product, not a college-level demonstration or static dashboard.

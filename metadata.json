@@ -1,0 +1,5 @@
+{
+  "name": "HengSeng Sentiment Price Prediction Agent",
+  "description": "AI-powered financial sentiment intelligence and next-period (n+1) price prediction platform for Hong Kong (HKEX) and South Korea (KRX) exchange assets.",
+  "requestFramePermissions": []
+}

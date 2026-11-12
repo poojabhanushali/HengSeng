@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hengseng_backend_api
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=production
+      - DATABASE_URL=postgresql://hengseng:hengseng_secure_pass@db:5432/hengseng_db
+      - REDIS_URL=redis://redis:6379/0
+      - APIFY_API_TOKEN=${APIFY_API_TOKEN:-}
+      - EXA_API_KEY=${EXA_API_KEY:-}
+      - MARKET_DATA_API_KEY=${MARKET_DATA_API_KEY:-}
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hengseng_celery_worker
+    command: celery -A app.tasks worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://hengseng:hengseng_secure_pass@db:5432/hengseng_db
+      - REDIS_URL=redis://redis:6379/0
+      - APIFY_API_TOKEN=${APIFY_API_TOKEN:-}
+      - EXA_API_KEY=${EXA_API_KEY:-}
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    container_name: hengseng_postgres
+    environment:
+      - POSTGRES_USER=hengseng
+      - POSTGRES_PASSWORD=hengseng_secure_pass
+      - POSTGRES_DB=hengseng_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: hengseng_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
