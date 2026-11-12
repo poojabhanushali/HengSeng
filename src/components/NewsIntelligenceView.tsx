@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NewsArticle, ExchangeCode } from '../types';
 import { Newspaper, Search, ExternalLink, ArrowRight, Sparkles } from 'lucide-react';
+import { TranslatedText } from './TranslatedText';
 
 export const NewsIntelligenceView: React.FC = () => {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
@@ -76,12 +77,12 @@ export const NewsIntelligenceView: React.FC = () => {
           />
         </div>
 
-        <div className="flex items-center gap-1 p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
+        <div className="flex flex-wrap items-center gap-1 p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
           {(['ALL', 'HKEX', 'KRX'] as const).map(ex => (
             <button
               key={ex}
               onClick={() => setSelectedExchange(ex)}
-              className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+              className={`px-2 py-1 text-[10px] sm:text-xs font-medium rounded-md transition-colors shrink-0 ${
                 selectedExchange === ex
                   ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -150,11 +151,21 @@ export const NewsIntelligenceView: React.FC = () => {
                 </div>
 
                 <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
-                  {art.title}
+                  <TranslatedText
+                    original={art.title}
+                    translation={art.titleEn}
+                    originalLang="en"
+                    className="text-sm font-semibold text-slate-900 dark:text-white"
+                  />
                 </h3>
 
                 <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-sans">
-                  {art.summary}
+                  <TranslatedText
+                    original={art.summary}
+                    translation={art.summaryEn}
+                    originalLang="en"
+                    className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-sans"
+                  />
                 </p>
 
                 {art.keyThemes && art.keyThemes.length > 0 && (

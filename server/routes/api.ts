@@ -652,6 +652,7 @@ apiRouter.put('/settings', (req: Request, res: Response) => {
   if (body.bullishThreshold !== undefined) currentSettings.bullishThreshold = body.bullishThreshold;
   if (body.bearishThreshold !== undefined) currentSettings.bearishThreshold = body.bearishThreshold;
   if (body.marketDataProvider) currentSettings.marketDataProvider = body.marketDataProvider;
+  if (body.languagePrefs) currentSettings.languagePrefs = body.languagePrefs;
 
   res.json({
     status: 'success',

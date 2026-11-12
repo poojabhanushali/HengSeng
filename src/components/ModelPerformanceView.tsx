@@ -74,18 +74,18 @@ export const ModelPerformanceView: React.FC = () => {
       </div>
 
       {/* Model Leaderboard Table */}
-      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
-        <table className="w-full min-w-[840px] text-left border-collapse text-xs">
+      <div className="hidden lg:block overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+        <table className="w-full text-left border-collapse text-xs">
           <thead>
-            <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/80 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              <th className="py-3 px-4">Model Architecture</th>
-              <th className="py-3 px-4 text-center">Status</th>
-              <th className="py-3 px-4 text-right">Directional Acc.</th>
-              <th className="py-3 px-4 text-right">MAPE %</th>
-              <th className="py-3 px-4 text-right">MAE (HKEX · HKD)</th>
-              <th className="py-3 px-4 text-right">MAE (KRX · KRW)</th>
-              <th className="py-3 px-4 text-right">Out-of-Sample R²</th>
-              <th className="py-3 px-4 text-right">OOS N</th>
+            <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/80 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              <th className="py-3 px-3">Model Architecture</th>
+              <th className="py-3 px-3 text-center">Status</th>
+              <th className="py-3 px-3 text-right">Directional Acc.</th>
+              <th className="py-3 px-3 text-right">MAPE %</th>
+              <th className="py-3 px-3 text-right">MAE (HKEX · HKD)</th>
+              <th className="py-3 px-3 text-right">MAE (KRX · KRW)</th>
+              <th className="py-3 px-3 text-right">Out-of-Sample R²</th>
+              <th className="py-3 px-3 text-right">OOS N</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
@@ -98,37 +98,37 @@ export const ModelPerformanceView: React.FC = () => {
             ) : (
               leaderboard.map((m, idx) => (
                 <tr key={m.modelName} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
-                  <td className="py-3 px-4 font-sans font-medium text-slate-900 dark:text-white">
+                  <td className="py-3 px-3 font-sans font-medium text-slate-900 dark:text-white">
                     <div className="flex items-center gap-2">
                       <span>{m.modelName}</span>
                       {m.champion && (
-                        <span className="font-mono text-[10px] text-emerald-500 font-semibold bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded">
+                        <span className="font-mono text-[9px] text-emerald-500 font-semibold bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded">
                           PRODUCTION
                         </span>
                       )}
                     </div>
                   </td>
-                  <td className="py-3 px-4 text-center">
-                    <span className="text-[11px] text-slate-500">
+                  <td className="py-3 px-3 text-center">
+                    <span className="text-[9px] text-slate-500">
                       {m.champion ? 'Deployed Production Model' : 'Benchmark / Challenger'}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-right text-emerald-500 font-bold tabular-nums">
+                  <td className="py-3 px-3 text-right text-emerald-500 font-bold tabular-nums">
                     {m.averageDirectionalAccuracy}%
                   </td>
-                  <td className="py-3 px-4 text-right text-slate-700 dark:text-slate-300 tabular-nums">
+                  <td className="py-3 px-3 text-right text-slate-700 dark:text-slate-300 tabular-nums">
                     {m.averageMapePercent}%
                   </td>
-                  <td className="py-3 px-4 text-right text-slate-700 dark:text-slate-300 tabular-nums">
+                  <td className="py-3 px-3 text-right text-slate-700 dark:text-slate-300 tabular-nums">
                     {m.hkexAverageMae !== null && m.hkexAverageMae !== undefined ? `HK$${m.hkexAverageMae}` : '—'}
                   </td>
-                  <td className="py-3 px-4 text-right text-slate-700 dark:text-slate-300 tabular-nums">
+                  <td className="py-3 px-3 text-right text-slate-700 dark:text-slate-300 tabular-nums">
                     {m.krxAverageMae !== null && m.krxAverageMae !== undefined ? `₩${m.krxAverageMae.toLocaleString()}` : '—'}
                   </td>
-                  <td className="py-3 px-4 text-right text-slate-700 dark:text-slate-300 tabular-nums">
+                  <td className="py-3 px-3 text-right text-slate-700 dark:text-slate-300 tabular-nums">
                     {m.averageR2}
                   </td>
-                  <td className="py-3 px-4 text-right text-slate-500 tabular-nums">
+                  <td className="py-3 px-3 text-right text-slate-500 tabular-nums">
                     {m.totalOutOfSampleSamples}
                   </td>
                 </tr>
@@ -136,6 +136,66 @@ export const ModelPerformanceView: React.FC = () => {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile: stacked cards (no horizontal scroll) */}
+      <div className="block lg:hidden space-y-3 pt-2">
+        {leaderboard.length === 0 ? (
+          <div className="py-4 text-center text-slate-400 text-xs">
+            {loading ? 'Loading benchmark leaderboard...' : 'No benchmark data available.'}
+          </div>
+        ) : (
+          leaderboard.map((m, idx) => (
+            <div
+              key={m.modelName}
+              className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-sans font-medium text-slate-900 dark:text-white text-sm truncate">
+                  {m.modelName}
+                </span>
+                {m.champion && (
+                  <span className="font-mono text-[9px] text-emerald-500 font-semibold bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded">
+                    PRODUCTION
+                  </span>
+                )}
+              </div>
+              <div className="text-[9px] text-slate-500 mb-2.5">
+                {m.champion ? 'Deployed Production Model' : 'Benchmark / Challenger'}
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-[10px]">
+                <div>
+                  <div className="text-[9px] text-slate-400">Directional Acc.</div>
+                  <div className="font-mono font-bold text-emerald-500">{m.averageDirectionalAccuracy}%</div>
+                </div>
+                <div>
+                  <div className="text-[9px] text-slate-400">MAPE %</div>
+                  <div className="font-mono text-slate-700 dark:text-slate-300">{m.averageMapePercent}%</div>
+                </div>
+                <div>
+                  <div className="text-[9px] text-slate-400">MAE HKEX (HKD)</div>
+                  <div className="font-mono text-slate-700 dark:text-slate-300">
+                    {m.hkexAverageMae !== null && m.hkexAverageMae !== undefined ? `HK$${m.hkexAverageMae}` : '—'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[9px] text-slate-400">MAE KRX (KRW)</div>
+                  <div className="font-mono text-slate-700 dark:text-slate-300">
+                    {m.krxAverageMae !== null && m.krxAverageMae !== undefined ? `₩${m.krxAverageMae.toLocaleString()}` : '—'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[9px] text-slate-400">Out-of-Sample R²</div>
+                  <div className="font-mono text-slate-700 dark:text-slate-300">{m.averageR2}</div>
+                </div>
+                <div>
+                  <div className="text-[9px] text-slate-400">OOS N</div>
+                  <div className="font-mono text-slate-500">{m.totalOutOfSampleSamples}</div>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Feature Importance Chart */}

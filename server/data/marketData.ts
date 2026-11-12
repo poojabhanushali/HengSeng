@@ -1,130 +1,5 @@
 import { Asset, ExchangeCode, PriceBar, SentimentDirection, RiskLevel } from '../../src/types';
-
-// The 10 monitored assets across HKEX and KRX
-export const INITIAL_ASSET_UNIVERSE = [
-  // Hong Kong Exchange (HKEX) - Asia/Hong_Kong - Currency HKD
-  {
-    ticker: '0700.HK',
-    name: 'Tencent Holdings',
-    nameLocal: '騰訊控股',
-    exchange: 'HKEX' as ExchangeCode,
-    sector: 'Internet & Interactive Media',
-    currency: 'HKD',
-    basePrice: 428.60,
-    high52w: 482.00,
-    low52w: 260.20,
-    avgVolume: 24500000,
-  },
-  {
-    ticker: '9988.HK',
-    name: 'Alibaba Group',
-    nameLocal: '阿里巴巴-SW',
-    exchange: 'HKEX' as ExchangeCode,
-    sector: 'E-commerce & Cloud Computing',
-    currency: 'HKD',
-    basePrice: 94.85,
-    high52w: 118.50,
-    low52w: 64.60,
-    avgVolume: 48200000,
-  },
-  {
-    ticker: '0005.HK',
-    name: 'HSBC Holdings',
-    nameLocal: '滙豐控股',
-    exchange: 'HKEX' as ExchangeCode,
-    sector: 'Banking & Financial Services',
-    currency: 'HKD',
-    basePrice: 71.30,
-    high52w: 74.20,
-    low52w: 57.10,
-    avgVolume: 18400000,
-  },
-  {
-    ticker: '3690.HK',
-    name: 'Meituan',
-    nameLocal: '美團-W',
-    exchange: 'HKEX' as ExchangeCode,
-    sector: 'Consumer Services & Delivery',
-    currency: 'HKD',
-    basePrice: 172.40,
-    high52w: 215.00,
-    low52w: 61.10,
-    avgVolume: 32100000,
-  },
-  {
-    ticker: '1810.HK',
-    name: 'Xiaomi Corporation',
-    nameLocal: '小米集團-W',
-    exchange: 'HKEX' as ExchangeCode,
-    sector: 'Consumer Electronics & EVs',
-    currency: 'HKD',
-    basePrice: 28.15,
-    high52w: 30.45,
-    low52w: 11.80,
-    avgVolume: 65400000,
-  },
-  // Korea Exchange (KRX) - Asia/Seoul - Currency KRW
-  {
-    ticker: '005930.KS',
-    name: 'Samsung Electronics',
-    nameLocal: '삼성전자',
-    exchange: 'KRX' as ExchangeCode,
-    sector: 'Semiconductors & Electronics',
-    currency: 'KRW',
-    basePrice: 57800,
-    high52w: 88800,
-    low52w: 52000,
-    avgVolume: 16800000,
-  },
-  {
-    ticker: '000660.KS',
-    name: 'SK Hynix',
-    nameLocal: 'SK하이닉스',
-    exchange: 'KRX' as ExchangeCode,
-    sector: 'Memory Semiconductors (HBM)',
-    currency: 'KRW',
-    basePrice: 196500,
-    high52w: 248500,
-    low52w: 115000,
-    avgVolume: 4200000,
-  },
-  {
-    ticker: '035420.KS',
-    name: 'NAVER',
-    nameLocal: '네이버',
-    exchange: 'KRX' as ExchangeCode,
-    sector: 'Internet Search & AI Services',
-    currency: 'KRW',
-    basePrice: 178200,
-    high52w: 228000,
-    low52w: 151100,
-    avgVolume: 740000,
-  },
-  {
-    ticker: '035720.KS',
-    name: 'Kakao',
-    nameLocal: '카카오',
-    exchange: 'KRX' as ExchangeCode,
-    sector: 'Messaging & Fintech Platform',
-    currency: 'KRW',
-    basePrice: 38450,
-    high52w: 61900,
-    low52w: 33450,
-    avgVolume: 1120000,
-  },
-  {
-    ticker: '005380.KS',
-    name: 'Hyundai Motor',
-    nameLocal: '현대자동차',
-    exchange: 'KRX' as ExchangeCode,
-    sector: 'Automotive & Mobility Solutions',
-    currency: 'KRW',
-    basePrice: 218500,
-    high52w: 298000,
-    low52w: 172000,
-    avgVolume: 890000,
-  },
-];
+import ASSET_UNIVERSE from './assets.json';
 
 // Helper to calculate technical indicators on PriceBar series
 export function computeTechnicalIndicators(bars: PriceBar[]): PriceBar[] {
@@ -208,7 +83,7 @@ function calculateEMA(values: number[], period: number): number[] {
 // Support and Resistance calculation using Classic Floor Trader Pivot Points & Swing Highs/Lows
 export function calculatePivotLevels(bars: PriceBar[]) {
   if (bars.length === 0) return { pivot: 0, s1: 0, s2: 0, r1: 0, r2: 0, swingHigh: 0, swingLow: 0 };
-  
+
   const lastBar = bars[bars.length - 1];
   const high = lastBar.high;
   const low = lastBar.low;
@@ -239,7 +114,7 @@ export function calculatePivotLevels(bars: PriceBar[]) {
 export function generateHistoricalBars(ticker: string, basePrice: number, days = 10): PriceBar[] {
   const bars: PriceBar[] = [];
   const now = new Date();
-  
+
   // Seed deterministically based on ticker characters for consistency
   let seed = 0;
   for (let i = 0; i < ticker.length; i++) seed += ticker.charCodeAt(i);
@@ -254,7 +129,7 @@ export function generateHistoricalBars(ticker: string, basePrice: number, days =
 
   for (let d = 0; d < days; d++) {
     dateCursor.setDate(dateCursor.getDate() + 1);
-    
+
     // Skip weekends
     const dayOfWeek = dateCursor.getDay();
     if (dayOfWeek === 0 || dayOfWeek === 6) {
@@ -294,7 +169,7 @@ export class MarketDataRepository {
   }
 
   public initializeData() {
-    for (const info of INITIAL_ASSET_UNIVERSE) {
+    for (const info of ASSET_UNIVERSE) {
       const bars = generateHistoricalBars(info.ticker, info.basePrice, 14);
       this.barsMap.set(info.ticker, bars);
 
@@ -308,7 +183,7 @@ export class MarketDataRepository {
         ticker: info.ticker,
         name: info.name,
         nameLocal: info.nameLocal,
-        exchange: info.exchange,
+        exchange: info.exchange as ExchangeCode,
         sector: info.sector,
         currency: info.currency,
         currentPrice: latestBar.close,

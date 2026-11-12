@@ -15,6 +15,7 @@ import { DataSourcesView } from './components/DataSourcesView';
 import { PipelineMonitorView } from './components/PipelineMonitorView';
 import { SettingsView } from './components/SettingsView';
 import { Sidebar } from './components/Sidebar';
+import { LanguageProvider } from './contexts/LanguageContext';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
@@ -65,7 +66,8 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f17] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors">
+    <LanguageProvider>
+      <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f17] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors">
       <Navigation
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -156,7 +158,8 @@ export function App() {
           onClose={() => setSelectedAsset(null)}
         />
       )}
-    </div>
+      </div>
+    </LanguageProvider>
   );
 }
 

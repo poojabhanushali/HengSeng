@@ -9,6 +9,8 @@ import {
   TrendingDown,
   Minus,
   Filter,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 
 interface AssetExplorerViewProps {
@@ -46,7 +48,7 @@ export const AssetExplorerView: React.FC<AssetExplorerViewProps> = ({
         asset.ticker.toLowerCase().includes(searchTerm.toLowerCase()) ||
         asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         asset.nameLocal.toLowerCase().includes(searchTerm.toLowerCase());
-      
+
       let matchSent = true;
       if (sentimentFilter === 'BULLISH') matchSent = asset.overallSentiment > 20;
       else if (sentimentFilter === 'BEARISH') matchSent = asset.overallSentiment < -20;
@@ -151,6 +153,9 @@ export const AssetExplorerView: React.FC<AssetExplorerViewProps> = ({
     );
   };
 
+  const fmtPrice = (asset: Asset, val: number) =>
+    asset.currency === 'KRW' ? `₩${val.toLocaleString()}` : `HK$${val.toFixed(2)}`;
+
   return (
     <div className="space-y-6">
       {/* Header and Controls */}
@@ -167,57 +172,55 @@ export const AssetExplorerView: React.FC<AssetExplorerViewProps> = ({
         <div className="flex items-center gap-3">
           <button
             onClick={exportToCSV}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm shrink-0"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Export CSV</span>
+            <span className="hidden sm:inline">Export CSV</span>
           </button>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="flex items-center gap-2 flex-1 min-w-[240px]">
+        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
           <Search className="w-4 h-4 text-slate-400 shrink-0" />
           <input
             type="text"
-            placeholder="Search by ticker (0700.HK, 005930.KS), company name, or local name..."
+            placeholder="Search by ticker, company name, or local name..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className="w-full text-xs bg-transparent border-none text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Exchange Switcher */}
-          <div className="flex items-center gap-1 p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
+        <div className="flex flex-wrap items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1 p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
             {(['ALL', 'HKEX', 'KRX'] as const).map(ex => (
               <button
                 key={ex}
                 onClick={() => setSelectedExchange(ex)}
-                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                className={`px-2 py-1 text-[10px] sm:text-xs font-medium rounded-md transition-colors shrink-0 ${
                   selectedExchange === ex
                     ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                {ex === 'ALL' ? 'All Exchanges' : ex}
+                {ex === 'ALL' ? 'All' : ex}
               </button>
             ))}
           </div>
 
-          {/* Sentiment Filter */}
-          <div className="flex items-center gap-1 p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
+          <div className="flex flex-wrap items-center gap-1 p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
             {[
-              { id: 'ALL', label: 'All Sentiment' },
-              { id: 'BULLISH', label: 'Bullish (>20)' },
+              { id: 'ALL', label: 'All' },
+              { id: 'BULLISH', label: 'Bullish' },
               { id: 'NEUTRAL', label: 'Neutral' },
-              { id: 'BEARISH', label: 'Bearish (<-20)' },
+              { id: 'BEARISH', label: 'Bearish' },
             ].map(f => (
               <button
                 key={f.id}
                 onClick={() => setSentimentFilter(f.id)}
-                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                className={`px-2 py-1 text-[10px] sm:text-xs font-medium rounded-md transition-colors shrink-0 ${
                   sentimentFilter === f.id
                     ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -230,174 +233,225 @@ export const AssetExplorerView: React.FC<AssetExplorerViewProps> = ({
         </div>
       </div>
 
-      {/* Asset Table */}
-      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
-        <table className="w-full min-w-[760px] text-left border-collapse">
-          <thead>
-            <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/80 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              <th className="py-3 px-4 w-12 text-center">Rank</th>
-              <th className="py-3 px-4 cursor-pointer hover:text-slate-900 dark:hover:text-white" onClick={() => handleSort('ticker')}>
-                <div className="flex items-center gap-1">
-                  <span>Asset / Ticker</span>
-                  <ArrowUpDown className="w-3 h-3" />
-                </div>
-              </th>
-              <th className="py-3 px-3 text-center">Exchange</th>
-              <th className="py-3 px-4 text-right cursor-pointer hover:text-slate-900 dark:hover:text-white" onClick={() => handleSort('currentPrice')}>
-                <div className="flex items-center justify-end gap-1">
-                  <span>Price</span>
-                  <ArrowUpDown className="w-3 h-3" />
-                </div>
-              </th>
-              <th className="py-3 px-4 text-right cursor-pointer hover:text-slate-900 dark:hover:text-white" onClick={() => handleSort('priceChangePercent')}>
-                <div className="flex items-center justify-end gap-1">
-                  <span>Change (24h)</span>
-                  <ArrowUpDown className="w-3 h-3" />
-                </div>
-              </th>
-              <th className="py-3 px-4 text-right cursor-pointer hover:text-slate-900 dark:hover:text-white" onClick={() => handleSort('socialMentions')}>
-                <div className="flex items-center justify-end gap-1">
-                  <span>Social Vol</span>
-                  <ArrowUpDown className="w-3 h-3" />
-                </div>
-              </th>
-              <th className="py-3 px-4 cursor-pointer hover:text-slate-900 dark:hover:text-white" onClick={() => handleSort('overallSentiment')}>
-                <div className="flex items-center gap-1">
-                  <span>Sentiment Score (-100..+100)</span>
-                  <ArrowUpDown className="w-3 h-3" />
-                </div>
-              </th>
-              <th className="py-3 px-4 text-right cursor-pointer hover:text-slate-900 dark:hover:text-white" onClick={() => handleSort('predictedChangePercent')}>
-                <div className="flex items-center justify-end gap-1">
-                  <span>Predicted (n+1)</span>
-                  <ArrowUpDown className="w-3 h-3" />
-                </div>
-              </th>
-              <th className="py-3 px-4 text-center">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
-            {sortedAssets.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="py-8 text-center text-slate-400">
-                  No assets match current criteria.
-                </td>
-              </tr>
-            ) : (
-              sortedAssets.map((asset, idx) => {
-                const isPositive = asset.priceChangePercent >= 0;
-                const isPredPositive = asset.predictedChangePercent >= 0;
+      {sortedAssets.length === 0 ? (
+        <div className="py-12 text-center text-slate-400 text-xs">
+          No assets match current criteria.
+        </div>
+      ) : (
+        <>
+          {/* Desktop: sortable table */}
+          <div className="hidden lg:block overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/80 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  <th className="py-3 px-3 w-10 text-center">Rank</th>
+                  <th className="py-3 px-3 cursor-pointer hover:text-slate-900 dark:hover:text-white" onClick={() => handleSort('ticker')}>
+                    <div className="flex items-center gap-1">
+                      <span>Asset / Ticker</span>
+                      <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                  <th className="py-3 px-3 text-center">Exchange</th>
+                  <th className="py-3 px-3 text-right cursor-pointer hover:text-slate-900 dark:hover:text-white" onClick={() => handleSort('currentPrice')}>
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Price</span>
+                      <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                  <th className="py-3 px-3 text-right cursor-pointer hover:text-slate-900 dark:hover:text-white" onClick={() => handleSort('priceChangePercent')}>
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Change (24h)</span>
+                      <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                  <th className="py-3 px-3 text-right cursor-pointer hover:text-slate-900 dark:hover:text-white" onClick={() => handleSort('socialMentions')}>
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Social Vol</span>
+                      <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                  <th className="py-3 px-3 cursor-pointer hover:text-slate-900 dark:hover:text-white" onClick={() => handleSort('overallSentiment')}>
+                    <div className="flex items-center gap-1">
+                      <span>Sentiment Score</span>
+                      <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                  <th className="py-3 px-3 text-right cursor-pointer hover:text-slate-900 dark:hover:text-white" onClick={() => handleSort('predictedChangePercent')}>
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Predicted (n+1)</span>
+                      <ArrowUpDown className="w-3 h-3" />
+                    </div>
+                  </th>
+                  <th className="py-3 px-3 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {sortedAssets.map((asset, idx) => {
+                  const isPositive = asset.priceChangePercent >= 0;
+                  const isPredPositive = asset.predictedChangePercent >= 0;
 
-                return (
-                  <tr
-                    key={asset.ticker}
-                    onClick={() => onSelectAsset(asset)}
-                    className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 cursor-pointer transition-colors"
-                  >
-                    <td className="py-3 px-4 text-center font-mono text-slate-400 tabular-nums">
-                      {idx + 1}
-                    </td>
+                  return (
+                    <tr
+                      key={asset.ticker}
+                      onClick={() => onSelectAsset(asset)}
+                      className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 cursor-pointer transition-colors"
+                    >
+                      <td className="py-3 px-3 text-center font-mono text-slate-400 tabular-nums">
+                        {idx + 1}
+                      </td>
 
-                    <td className="py-3 px-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
-                            {asset.ticker}
-                          </span>
-                          <span className="text-[11px] text-slate-400 dark:text-slate-500">
-                            {asset.nameLocal}
-                          </span>
+                      <td className="py-3 px-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
+                              {asset.ticker}
+                            </span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                              {asset.nameLocal}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 truncate max-w-[160px]">
+                            {asset.name}
+                          </div>
                         </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[180px]">
-                          {asset.name}
-                        </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="py-3 px-3 text-center">
-                      <span className="font-mono text-[11px] text-slate-600 dark:text-slate-400">
-                        {asset.exchange}
-                      </span>
-                    </td>
-
-                    <td className="py-3 px-4 text-right">
-                      <div className="font-mono font-medium text-slate-900 dark:text-slate-100 tabular-nums">
-                        {asset.currency === 'KRW'
-                          ? `₩${asset.currentPrice.toLocaleString()}`
-                          : `HK$${asset.currentPrice.toFixed(2)}`}
-                      </div>
-                    </td>
-
-                    <td className="py-3 px-4 text-right">
-                      <div
-                        className={`inline-flex items-center gap-0.5 font-mono tabular-nums ${
-                          isPositive
-                            ? 'text-emerald-600 dark:text-emerald-400'
-                            : 'text-red-600 dark:text-red-400'
-                        }`}
-                      >
-                        {isPositive ? (
-                          <TrendingUp className="w-3.5 h-3.5" />
-                        ) : (
-                          <TrendingDown className="w-3.5 h-3.5" />
-                        )}
-                        <span>
-                          {isPositive ? '+' : ''}
-                          {asset.priceChangePercent.toFixed(2)}%
+                      <td className="py-3 px-3 text-center">
+                        <span className="font-mono text-[10px] text-slate-600 dark:text-slate-400">
+                          {asset.exchange}
                         </span>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="py-3 px-4 text-right">
-                      <div className="font-mono tabular-nums text-slate-700 dark:text-slate-300">
-                        {asset.socialMentions} posts
-                      </div>
-                      <div className="text-[10px] text-slate-400">
-                        {asset.newsMentions} news
-                      </div>
-                    </td>
+                      <td className="py-3 px-3 text-right">
+                        <div className="font-mono font-medium text-slate-900 dark:text-slate-100 tabular-nums">
+                          {fmtPrice(asset, asset.currentPrice)}
+                        </div>
+                      </td>
 
-                    <td className="py-3 px-4">
-                      {renderSentimentBadge(asset.sentimentDirection, asset.overallSentiment)}
-                    </td>
+                      <td className="py-3 px-3 text-right">
+                        <div
+                          className={`inline-flex items-center gap-0.5 font-mono tabular-nums ${
+                            isPositive
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : 'text-red-600 dark:text-red-400'
+                          }`}
+                        >
+                          {isPositive ? (
+                            <TrendingUp className="w-3 h-3" />
+                          ) : (
+                            <TrendingDown className="w-3 h-3" />
+                          )}
+                          <span>
+                            {isPositive ? '+' : ''}
+                            {asset.priceChangePercent.toFixed(2)}%
+                          </span>
+                        </div>
+                      </td>
 
-                    <td className="py-3 px-4 text-right">
-                      <div className="font-mono font-medium text-slate-900 dark:text-slate-100 tabular-nums">
-                        {asset.currency === 'KRW'
-                          ? `₩${asset.predictedPrice.toLocaleString()}`
-                          : `HK$${asset.predictedPrice.toFixed(2)}`}
-                      </div>
-                      <div
-                        className={`text-[11px] font-mono tabular-nums ${
-                          isPredPositive
-                            ? 'text-emerald-600 dark:text-emerald-400'
-                            : 'text-red-600 dark:text-red-400'
-                        }`}
-                      >
-                        {isPredPositive ? '+' : ''}
-                        {asset.predictedChangePercent.toFixed(2)}% ({asset.predictionDirection})
-                      </div>
-                    </td>
+                      <td className="py-3 px-3 text-right">
+                        <div className="font-mono tabular-nums text-slate-700 dark:text-slate-300">
+                          {asset.socialMentions} posts
+                        </div>
+                        <div className="text-[9px] text-slate-400">
+                          {asset.newsMentions} news
+                        </div>
+                      </td>
 
-                    <td className="py-3 px-4 text-center">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectAsset(asset);
-                        }}
-                        className="p-1 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-                        title="View Asset Terminal"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+                      <td className="py-3 px-3">
+                        {renderSentimentBadge(asset.sentimentDirection, asset.overallSentiment)}
+                      </td>
+
+                      <td className="py-3 px-3 text-right">
+                        <div className="font-mono font-medium text-slate-900 dark:text-slate-100 tabular-nums">
+                          {fmtPrice(asset, asset.predictedPrice)}
+                        </div>
+                        <div
+                          className={`text-[10px] font-mono tabular-nums ${
+                            isPredPositive
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : 'text-red-600 dark:text-red-400'
+                          }`}
+                        >
+                          {isPredPositive ? '+' : ''}
+                          {asset.predictedChangePercent.toFixed(2)}% ({asset.predictionDirection})
+                        </div>
+                      </td>
+
+                      <td className="py-3 px-3 text-center">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectAsset(asset);
+                          }}
+                          className="p-1 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                          title="View Asset Terminal"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile: stacked cards (no horizontal scroll) */}
+          <div className="block lg:hidden space-y-3 pt-2">
+            {sortedAssets.map((asset, idx) => {
+              const isPositive = asset.priceChangePercent >= 0;
+              const isPredPositive = asset.predictedChangePercent >= 0;
+
+              return (
+                <div
+                  key={asset.ticker}
+                  onClick={() => onSelectAsset(asset)}
+                  className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs cursor-pointer transition-all hover:border-slate-300 dark:hover:border-slate-700"
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono font-bold text-slate-900 dark:text-slate-100 text-xs">
+                        {asset.ticker}
+                      </span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                        {asset.nameLocal}
+                      </span>
+                    </div>
+                    <span className="font-mono text-[10px] text-slate-500">#{idx + 1}</span>
+                  </div>
+                  <div className="text-[10px] text-slate-500 truncate mb-1.5">{asset.name}</div>
+                  <div className="grid grid-cols-2 gap-2 text-[10px]">
+                    <div className="flex items-center gap-1">
+                      <span className="text-slate-400">Price</span>
+                      <span className="font-mono font-medium text-slate-900 dark:text-slate-100">{fmtPrice(asset, asset.currentPrice)}</span>
+                    </div>
+                    <div className="flex items-center gap-1 justify-end">
+                      <span className={`font-mono font-medium ${isPositive ? 'text-emerald-500' : 'text-red-500'}`}>
+                        {isPositive ? '+' : ''}{asset.priceChangePercent.toFixed(2)}%
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-slate-400">Sentiment</span>
+                      <span className={`font-mono font-medium ${asset.overallSentiment > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                        {asset.overallSentiment > 0 ? '+' : ''}{asset.overallSentiment}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 justify-end">
+                      <span className={`font-mono font-medium ${isPredPositive ? 'text-emerald-500' : 'text-red-500'}`}>
+                        {isPredPositive ? '+' : ''}{asset.predictedChangePercent.toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-[9px] text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-1">
+                    <span>{asset.exchange}</span>
+                    <span>{asset.socialMentions} posts · {asset.newsMentions} news</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 };

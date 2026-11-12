@@ -1,6 +1,7 @@
 import React from 'react';
 import { Asset, ExchangeCode } from '../types';
 import { Globe2, TrendingUp, TrendingDown, ArrowRight } from 'lucide-react';
+import { TranslatedText } from './TranslatedText';
 
 interface ExchangeViewProps {
   assets: Asset[];
@@ -35,18 +36,18 @@ export const ExchangeView: React.FC<ExchangeViewProps> = ({ assets, selectedExch
         </div>
 
         {/* Exchange Selector */}
-        <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+        <div className="flex flex-wrap items-center justify-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
           {(['ALL', 'HKEX', 'KRX'] as const).map(ex => (
             <button
               key={ex}
               onClick={() => setSelectedExchange(ex)}
-              className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+              className={`px-2 py-1 text-[10px] sm:text-xs font-medium rounded-md transition-colors shrink-0 min-w-[60px] sm:min-w-[72px] text-center ${
                 selectedExchange === ex
                   ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              {ex === 'ALL' ? 'All Exchanges (10)' : ex === 'HKEX' ? 'Hong Kong Exchange (HKEX)' : 'Korea Exchange (KRX)'}
+              {ex === 'ALL' ? 'All' : ex}
             </button>
           ))}
         </div>
@@ -112,7 +113,12 @@ export const ExchangeView: React.FC<ExchangeViewProps> = ({ assets, selectedExch
                       {asset.ticker}
                     </span>
                     <span className="text-xs text-slate-400 dark:text-slate-500">
-                      {asset.nameLocal}
+                      <TranslatedText
+                        original={asset.nameLocal}
+                        translation={asset.name}
+                        originalLang={asset.exchange === 'HKEX' ? 'zh-HK' : 'ko'}
+                        className="text-xs text-slate-400 dark:text-slate-500"
+                      />
                     </span>
                   </div>
 

@@ -1,8 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { SystemSettings } from '../types';
-import { Settings, Save, CheckCircle2, Key, Sliders, Shield, Database } from 'lucide-react';
+import { SystemSettings, LanguageCode, LanguagePrefs } from '../types';
+import { Settings, Save, CheckCircle2, Key, Sliders, Shield, Database, Globe2 } from 'lucide-react';
+import { useLanguage } from '../contexts/LanguageContext';
+
+const LANGUAGE_OPTIONS: { id: LanguageCode; label: string; desc: string }[] = [
+  {
+    id: 'en',
+    label: 'English',
+    desc: 'Show English translations underneath non-English content',
+  },
+  {
+    id: 'zh-HK',
+    label: 'Traditional Chinese',
+    desc: 'Show Hong Kong / Traditional Chinese content',
+  },
+  {
+    id: 'ko',
+    label: 'Korean',
+    desc: 'Show South Korean / Korean content',
+  },
+];
 
 export const SettingsView: React.FC = () => {
+  const { prefs, setPrefs } = useLanguage();
   const [settings, setSettings] = useState<SystemSettings>({
     apifyApiToken: '',
     apifyLihkgActorId: 'apify/lihkg-scraper',
@@ -244,6 +264,45 @@ export const SettingsView: React.FC = () => {
                 Only the n+1 horizon is implemented; 3- and 5-session targets are not available.
               </span>
             </div>
+          </div>
+        </div>
+
+        {/* Section 4: Language & Translation Preferences */}
+        <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-4">
+          <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <Globe2 className="w-4 h-4 text-emerald-500" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+              Language & Translation Preferences
+            </h2>
+          </div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            Choose which languages to display. English translations appear directly underneath
+            non-English social posts and news. Changes apply to all content instantly.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {LANGUAGE_OPTIONS.map(lang => (
+              <div
+                key={lang.id}
+                className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50"
+              >
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={prefs[lang.id]}
+                    onChange={() =>
+                      setPrefs({ [lang.id]: !prefs[lang.id] } as Partial<LanguagePrefs>)
+                    }
+                    className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-emerald-500 focus:ring-emerald-500 bg-white dark:bg-slate-900"
+                  />
+                  <span className="font-medium text-slate-700 dark:text-slate-300">
+                    {lang.label}
+                  </span>
+                </label>
+                <span className="block mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+                  {lang.desc}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
 

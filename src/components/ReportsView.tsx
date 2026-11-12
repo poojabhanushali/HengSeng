@@ -152,8 +152,8 @@ export const ReportsView: React.FC = () => {
             </p>
 
             {/* Asset Rankings Mini Table */}
-            <div className="overflow-x-auto pt-2">
-              <table className="w-full min-w-[580px] text-left text-xs border-collapse">
+            <div className="hidden lg:block overflow-x-auto pt-2">
+              <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] uppercase font-semibold text-slate-400">
                     <th className="py-2 px-3">Ticker</th>
@@ -189,6 +189,54 @@ export const ReportsView: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile: stacked cards (no horizontal scroll) */}
+            <div className="block lg:hidden pt-2 space-y-2">
+              {report.assetsRanked.map(a => {
+                const isPos = a.priceChangePercent >= 0;
+                const isPredPos = a.predictedChangePercent >= 0;
+                return (
+                  <div
+                    key={a.ticker}
+                    className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                  >
+                    <div className="flex items-center justify-between text-[10px] mb-1">
+                      <span className="font-mono font-semibold text-slate-900 dark:text-slate-100 truncate">
+                        {a.ticker}
+                      </span>
+                      <span className="text-[9px] text-slate-400">{a.exchange}</span>
+                    </div>
+                    <div className="text-[9px] text-slate-500 truncate mb-1.5">{a.name}</div>
+                    <div className="grid grid-cols-2 gap-2 text-[9px]">
+                      <div>
+                        <div className="text-[8px] text-slate-400">Current Price</div>
+                        <div className="font-mono text-slate-900 dark:text-slate-100">
+                          {a.currency === 'KRW' ? `₩${a.currentPrice.toLocaleString()}` : `HK$${a.currentPrice.toFixed(2)}`}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[8px] text-slate-400">Sentiment</div>
+                        <div className={`font-mono font-medium ${a.overallSentiment > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                          {a.overallSentiment > 0 ? '+' : ''}{a.overallSentiment}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[8px] text-slate-400">Predicted Price</div>
+                        <div className="font-mono text-slate-900 dark:text-slate-100">
+                          {a.currency === 'KRW' ? `₩${a.predictedPrice.toLocaleString()}` : `HK$${a.predictedPrice.toFixed(2)}`}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[8px] text-slate-400">Predicted Change</div>
+                        <div className={`font-mono font-medium ${isPredPos ? 'text-emerald-500' : 'text-red-500'}`}>
+                          {isPredPos ? '+' : ''}{a.predictedChangePercent.toFixed(2)}%
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}

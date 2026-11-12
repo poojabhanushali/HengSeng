@@ -173,49 +173,92 @@ export const BacktestingView: React.FC<BacktestingViewProps> = ({ assets }) => {
       </div>
 
       {/* Historical Point by Point Inspection Table */}
-      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
-        <table className="w-full min-w-[640px] text-left border-collapse text-xs">
+      <div className="hidden lg:block overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+        <table className="w-full text-left border-collapse text-xs">
           <thead>
-            <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/80 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              <th className="py-3 px-4">Evaluation Date (UTC)</th>
-              <th className="py-3 px-4 text-right">Actual Realized Price</th>
-              <th className="py-3 px-4 text-right">Model Predicted Price</th>
-              <th className="py-3 px-4 text-right">Absolute Error</th>
-              <th className="py-3 px-4 text-center">Direction Hit</th>
-              <th className="py-3 px-4 text-right">Social Sentiment Score</th>
+            <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/80 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              <th className="py-3 px-3">Evaluation Date (UTC)</th>
+              <th className="py-3 px-3 text-right">Actual Realized Price</th>
+              <th className="py-3 px-3 text-right">Model Predicted Price</th>
+              <th className="py-3 px-3 text-right">Absolute Error</th>
+              <th className="py-3 px-3 text-center">Direction Hit</th>
+              <th className="py-3 px-3 text-right">Social Sentiment Score</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
             {points.map((pt, idx) => (
               <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
-                <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{pt.date}</td>
-                <td className="py-3 px-4 text-right font-medium text-slate-900 dark:text-white tabular-nums">
+                <td className="py-3 px-3 text-slate-700 dark:text-slate-300">{pt.date}</td>
+                <td className="py-3 px-3 text-right font-medium text-slate-900 dark:text-white tabular-nums">
                   {selectedAsset?.currency === 'KRW' ? `₩${pt.actualPrice.toLocaleString()}` : `HK$${pt.actualPrice.toFixed(2)}`}
                 </td>
-                <td className="py-3 px-4 text-right font-medium text-slate-900 dark:text-white tabular-nums">
+                <td className="py-3 px-3 text-right font-medium text-slate-900 dark:text-white tabular-nums">
                   {selectedAsset?.currency === 'KRW' ? `₩${pt.predictedPrice.toLocaleString()}` : `HK$${pt.predictedPrice.toFixed(2)}`}
                 </td>
-                <td className="py-3 px-4 text-right text-slate-500 tabular-nums">
+                <td className="py-3 px-3 text-right text-slate-500 tabular-nums">
                   {selectedAsset?.currency === 'KRW' ? `₩${pt.absoluteError.toLocaleString()}` : `HK$${pt.absoluteError}`}
                 </td>
-                <td className="py-3 px-4 text-center">
+                <td className="py-3 px-3 text-center">
                   {pt.directionMatch ? (
-                    <span className="inline-flex items-center gap-1 text-emerald-500 font-semibold text-[11px]">
-                      <CheckCircle className="w-3.5 h-3.5" /> Hit
+                    <span className="inline-flex items-center gap-1 text-emerald-500 font-semibold text-[10px]">
+                      <CheckCircle className="w-3 h-3" /> Hit
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-red-500 font-semibold text-[11px]">
-                      <XCircle className="w-3.5 h-3.5" /> Miss
+                    <span className="inline-flex items-center gap-1 text-red-500 font-semibold text-[10px]">
+                      <XCircle className="w-3 h-3" /> Miss
                     </span>
                   )}
                 </td>
-                <td className="py-3 px-4 text-right text-slate-700 dark:text-slate-300 tabular-nums">
+                <td className="py-3 px-3 text-right text-slate-700 dark:text-slate-300 tabular-nums">
                   {pt.sentimentScore > 0 ? `+${pt.sentimentScore}` : pt.sentimentScore}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile: stacked cards (no horizontal scroll) */}
+      <div className="block lg:hidden space-y-3 pt-2">
+        {points.map((pt, idx) => (
+          <div
+            key={idx}
+            className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs"
+          >
+            <div className="flex items-center justify-between text-[10px] mb-1.5">
+              <span className="font-medium text-slate-900 dark:text-slate-100">{pt.date}</span>
+              <span className={`font-mono font-semibold ${pt.directionMatch ? 'text-emerald-500' : 'text-red-500'}`}>
+                {pt.directionMatch ? 'Hit' : 'Miss'}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-[10px] text-slate-700 dark:text-slate-300">
+              <div>
+                <div className="text-[9px] text-slate-400">Actual Realized Price</div>
+                <div className="font-mono text-slate-900 dark:text-slate-100">
+                  {selectedAsset?.currency === 'KRW' ? `₩${pt.actualPrice.toLocaleString()}` : `HK$${pt.actualPrice.toFixed(2)}`}
+                </div>
+              </div>
+              <div>
+                <div className="text-[9px] text-slate-400">Model Predicted Price</div>
+                <div className="font-mono text-slate-900 dark:text-slate-100">
+                  {selectedAsset?.currency === 'KRW' ? `₩${pt.predictedPrice.toLocaleString()}` : `HK$${pt.predictedPrice.toFixed(2)}`}
+                </div>
+              </div>
+              <div>
+                <div className="text-[9px] text-slate-400">Absolute Error</div>
+                <div className="font-mono text-slate-500">
+                  {selectedAsset?.currency === 'KRW' ? `₩${pt.absoluteError.toLocaleString()}` : `HK$${pt.absoluteError}`}
+                </div>
+              </div>
+              <div>
+                <div className="text-[9px] text-slate-400">Social Sentiment</div>
+                <div className="font-mono">
+                  {pt.sentimentScore > 0 ? `+${pt.sentimentScore}` : pt.sentimentScore}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

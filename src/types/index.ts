@@ -69,6 +69,7 @@ export interface SocialPost {
   authorFollowers?: number;
   authorInfluenceScore: number; // 0 to 1
   text: string;
+  textEn?: string; // English translation (shown underneath for non-English posts)
   originalLanguage: 'zh-HK' | 'zh-CN' | 'ko' | 'en';
   publishedAt: string; // ISO UTC
   collectedAt: string;
@@ -90,6 +91,7 @@ export interface NewsArticle {
   assetName: string;
   exchange: ExchangeCode;
   title: string;
+  titleEn?: string; // English translation
   url: string;
   publisher: string;
   publishedAt: string;
@@ -97,6 +99,7 @@ export interface NewsArticle {
   searchQuery: string;
   relevanceScore: number; // 0 to 1
   summary: string;
+  summaryEn?: string; // English translation
   sentimentScore: number; // -100 to +100
   sentimentLabel: SentimentDirection;
   confidence: number;
@@ -197,6 +200,15 @@ export interface SystemSettings {
   dataRetentionDays: number;
   enableAutomatedOrchestration: boolean;
   orchestrationIntervalHours: number;
+  languagePrefs?: LanguagePrefs;
+}
+
+export type LanguageCode = 'en' | 'zh-HK' | 'ko';
+
+export interface LanguagePrefs {
+  en: boolean;
+  'zh-HK': boolean;
+  ko: boolean;
 }
 
 export interface ExecutiveReport {

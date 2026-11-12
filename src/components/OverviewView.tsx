@@ -11,6 +11,7 @@ import {
   ArrowRight,
   Sparkles,
 } from 'lucide-react';
+import { TranslatedText } from './TranslatedText';
 import {
   ResponsiveContainer,
   BarChart,
@@ -309,7 +310,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                   <span className="font-mono text-slate-400 w-4 shrink-0">{idx + 1}</span>
                   <div className="min-w-0">
                     <div className="font-mono font-medium text-slate-900 dark:text-slate-100 truncate">
-                      {asset.ticker} <span className="text-[11px] text-slate-400">({asset.nameLocal})</span>
+                      {asset.ticker}
+                      <TranslatedText
+                        original={`(${asset.nameLocal})`}
+                        translation={asset.name}
+                        originalLang={asset.exchange === 'HKEX' ? 'zh-HK' : 'ko'}
+                        className="text-[11px] text-slate-400 ml-1"
+                      />
                     </div>
                     <div className="text-[11px] text-slate-500 truncate">{asset.exchange} · {asset.sector}</div>
                   </div>

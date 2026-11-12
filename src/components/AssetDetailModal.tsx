@@ -26,6 +26,7 @@ import {
   LineChart,
   Line,
 } from 'recharts';
+import { TranslatedText } from './TranslatedText';
 
 interface AssetDetailModalProps {
   asset: Asset;
@@ -101,9 +102,12 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({ asset, onClo
                 <span className="text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-300">
                   {asset.name}
                 </span>
-                <span className="text-[11px] sm:text-xs text-slate-400 dark:text-slate-500">
-                  ({asset.nameLocal})
-                </span>
+                <TranslatedText
+                  original={`(${asset.nameLocal})`}
+                  translation={asset.name}
+                  originalLang={asset.exchange === 'HKEX' ? 'zh-HK' : 'ko'}
+                  className="text-[11px] sm:text-xs text-slate-400 dark:text-slate-500"
+                />
               </div>
               <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] sm:text-xs text-slate-500">
                 <span>{asset.exchange}</span>
@@ -155,7 +159,7 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({ asset, onClo
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex items-center gap-2 px-4 sm:px-6 pt-4 border-b border-slate-200 dark:border-slate-800 text-xs font-medium overflow-x-auto">
+        <div className="flex flex-wrap items-center gap-1 px-3 sm:px-6 pt-4 border-b border-slate-200 dark:border-slate-800 text-[10px] sm:text-xs font-medium">
           {[
             { id: 'technicals', label: 'Price & Technicals' },
             { id: 'prediction', label: 'ML Price Forecast (n+1)' },
@@ -165,11 +169,11 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({ asset, onClo
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id as any)}
-              className={`pb-3 border-b-2 transition-colors whitespace-nowrap ${
+              className={`pb-2 border-b-2 transition-colors whitespace-nowrap shrink-0 ${
                 activeTab === t.id
                   ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 font-semibold'
                   : 'border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
+              } px-2 sm:px-2.5 py-1.5`}
             >
               {t.label}
             </button>
@@ -437,7 +441,12 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({ asset, onClo
                           {post.sentimentScore > 0 ? `+${post.sentimentScore}` : post.sentimentScore} ({post.sentimentLabel})
                         </span>
                       </div>
-                      <p className="text-slate-800 dark:text-slate-200">{post.text}</p>
+                      <TranslatedText
+                        original={post.text}
+                        translation={post.textEn}
+                        originalLang={post.originalLanguage}
+                        className="text-slate-800 dark:text-slate-200"
+                      />
                       {post.extractedPhrases.length > 0 && (
                         <div className="flex items-center gap-1.5 pt-1 text-[11px] text-slate-500">
                           <span>Key Phrases:</span>
@@ -481,8 +490,22 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({ asset, onClo
                           <ExternalLink className="w-3 h-3" />
                         </a>
                       </div>
-                      <div className="font-semibold text-slate-900 dark:text-white">{art.title}</div>
-                      <p className="text-slate-600 dark:text-slate-400">{art.summary}</p>
+                      <div className="font-semibold text-slate-900 dark:text-white">
+                        <TranslatedText
+                          original={art.title}
+                          translation={art.titleEn}
+                          originalLang="en"
+                          className="font-semibold text-slate-900 dark:text-white"
+                        />
+                      </div>
+                      <p className="text-slate-600 dark:text-slate-400">
+                        <TranslatedText
+                          original={art.summary}
+                          translation={art.summaryEn}
+                          originalLang="en"
+                          className="text-slate-600 dark:text-slate-400"
+                        />
+                      </p>
                     </div>
                   ))}
                 </div>

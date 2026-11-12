@@ -10,6 +10,7 @@ import {
   Eye,
   Filter,
 } from 'lucide-react';
+import { TranslatedText } from './TranslatedText';
 
 export const SocialSentimentView: React.FC = () => {
   const [posts, setPosts] = useState<SocialPost[]>([]);
@@ -68,12 +69,12 @@ export const SocialSentimentView: React.FC = () => {
       <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3 shadow-xs">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Platform tabs */}
-          <div className="flex items-center gap-1 p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
+          <div className="flex flex-wrap items-center gap-1 p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
             {['ALL', 'LIHKG', 'Telegram', 'Naver Finance', 'Daum Finance', 'Futu/Moomoo'].map(plat => (
               <button
                 key={plat}
                 onClick={() => setSelectedPlatform(plat)}
-                className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                className={`px-2 py-1 text-[10px] sm:text-xs font-medium rounded-md transition-colors shrink-0 ${
                   selectedPlatform === plat
                     ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -85,9 +86,9 @@ export const SocialSentimentView: React.FC = () => {
           </div>
 
           {/* Sentiment tabs */}
-          <div className="flex items-center gap-1 p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
+          <div className="flex flex-wrap items-center gap-1 p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
             {[
-              { id: 'ALL', label: 'All Sentiment' },
+              { id: 'ALL', label: 'All' },
               { id: 'BULLISH', label: 'Bullish' },
               { id: 'NEUTRAL', label: 'Neutral' },
               { id: 'BEARISH', label: 'Bearish' },
@@ -95,7 +96,7 @@ export const SocialSentimentView: React.FC = () => {
               <button
                 key={s.id}
                 onClick={() => setSelectedSentiment(s.id)}
-                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                className={`px-2 py-1 text-[10px] sm:text-xs font-medium rounded-md transition-colors shrink-0 ${
                   selectedSentiment === s.id
                     ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -175,9 +176,12 @@ export const SocialSentimentView: React.FC = () => {
                 </div>
 
                 {/* Text Body */}
-                <p className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-sans">
-                  {post.text}
-                </p>
+                <TranslatedText
+                  original={post.text}
+                  translation={post.textEn}
+                  originalLang={post.originalLanguage}
+                  className="text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-sans"
+                />
 
                 {/* Extracted Phrases & Position */}
                 {post.extractedPhrases && post.extractedPhrases.length > 0 && (
