@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ExecutiveReport, ExchangeCode } from '../types';
-import { FileSpreadsheet, Download, Printer, Plus, Sparkles, CheckCircle2 } from 'lucide-react';
+import { FileSpreadsheet, Download, Printer, Plus, Sparkles, CheckCircle2, ExternalLink } from 'lucide-react';
+import { DropdownMenu } from './DropdownMenu';
 
 export const ReportsView: React.FC = () => {
   const [reports, setReports] = useState<ExecutiveReport[]>([]);
@@ -127,6 +128,27 @@ export const ReportsView: React.FC = () => {
                   <Download className="w-3 h-3" />
                   <span>Download CSV</span>
                 </a>
+                <DropdownMenu
+                  trigger={<ExternalLink className="w-3 h-3" />}
+                  items={[
+                    {
+                      label: 'View Full Briefing',
+                      onClick: () => console.log(`View report ${report.id}`),
+                      icon: <FileSpreadsheet className="w-3 h-3" />,
+                    },
+                    {
+                      label: 'Download JSON',
+                      onClick: () =>
+                        (window.location.href = `/api/v1/reports/${report.id}/download?format=json`),
+                      icon: <Download className="w-3 h-3" />,
+                    },
+                    {
+                      label: 'Print / PDF',
+                      onClick: () => window.print(),
+                      icon: <Printer className="w-3 h-3" />,
+                    },
+                  ]}
+                />
               </div>
             </div>
 

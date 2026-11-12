@@ -224,4 +224,14 @@ export interface ExecutiveReport {
   modelDirectionalAccuracy: number;
   summaryProse: string;
   assetsRanked: Asset[];
+  modelName: string;
+  modelVersion: string;
+  evaluationPeriod: string;
+  sampleSize: number;
+  mae: number;
+  mape: number;
+  rmse: number;
+  r2Score: number;
+  baselineImprovementPercent: number;
+  limitations: string[];
 }

@@ -1,7 +1,8 @@
 import React from 'react';
 import { Asset, ExchangeCode } from '../types';
-import { Globe2, TrendingUp, TrendingDown, ArrowRight } from 'lucide-react';
+import { Globe2, TrendingUp, TrendingDown, ArrowRight, ExternalLink } from 'lucide-react';
 import { TranslatedText } from './TranslatedText';
+import { DropdownMenu } from './DropdownMenu';
 
 interface ExchangeViewProps {
   assets: Asset[];
@@ -162,10 +163,26 @@ export const ExchangeView: React.FC<ExchangeViewProps> = ({ assets, selectedExch
 
                 <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500">
                   <span>Pivot: {asset.pivotPoint}</span>
-                  <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
-                    <span>Inspect</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </div>
+                  <DropdownMenu
+                    trigger={<ExternalLink className="w-3 h-3" />}
+                    items={[
+                      {
+                        label: 'View Asset Terminal',
+                        onClick: () => onSelectAsset(asset),
+                        icon: <ArrowRight className="w-3 h-3" />,
+                      },
+                      {
+                        label: 'Compare Exchange',
+                        onClick: () => console.log(`Compare ${asset.ticker}`),
+                        icon: <Globe2 className="w-3 h-3" />,
+                      },
+                      {
+                        label: 'Export Asset Data',
+                        onClick: () => console.log(`Export ${asset.ticker}`),
+                        icon: <ExternalLink className="w-3 h-3" />,
+                      },
+                    ]}
+                  />
                 </div>
               </div>
             );

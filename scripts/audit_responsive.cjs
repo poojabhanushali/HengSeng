@@ -4,7 +4,11 @@ const fs = require('fs');
 async function runResponsiveAudit() {
   if (!fs.existsSync('test-screenshots')) fs.mkdirSync('test-screenshots');
 
+  const executablePath = process.platform === 'win32'
+    ? 'C:\\Users\\Admin\\AppData\\Local\\ms-playwright\\chromium-1254\\chrome-win64\\chrome.exe'
+    : undefined;
   const browser = await chromium.launch({
+    executablePath,
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
 

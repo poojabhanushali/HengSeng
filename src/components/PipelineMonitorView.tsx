@@ -7,7 +7,11 @@ import {
   CheckCircle2,
   ShieldCheck,
   AlertTriangle,
+  ExternalLink,
+  Clock,
+  Bug,
 } from 'lucide-react';
+import { DropdownMenu } from './DropdownMenu';
 
 interface PipelineMonitorViewProps {
   isPipelineRunning: boolean;
@@ -144,6 +148,28 @@ export const PipelineMonitorView: React.FC<PipelineMonitorViewProps> = ({
                   {agent.message}
                 </div>
               </div>
+
+              <DropdownMenu
+                trigger={<ExternalLink className="w-3 h-3" />}
+                items={[
+                  {
+                    label: 'View Agent Details',
+                    onClick: () => console.log(`Agent ${agent.agentNumber} details`),
+                    icon: <Clock className="w-3 h-3" />,
+                  },
+                  {
+                    label: 'Restart Agent',
+                    onClick: () => console.log(`Restart agent ${agent.agentNumber}`),
+                    disabled: agent.status === 'running',
+                    icon: <RefreshCw className="w-3 h-3" />,
+                  },
+                  {
+                    label: 'View Execution Logs',
+                    onClick: () => console.log(`Agent ${agent.agentNumber} logs`),
+                    icon: <Bug className="w-3 h-3" />,
+                  },
+                ]}
+              />
             </div>
           );
         })}

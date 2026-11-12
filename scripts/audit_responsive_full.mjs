@@ -4,7 +4,7 @@ import fs from 'fs';
 const executablePath =
   process.env.PW_EXECUTABLE_PATH ||
   (process.platform === 'win32'
-    ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+    ? 'C:\\Users\\Admin\\AppData\\Local\\ms-playwright\\chromium-1254\\chrome-win64\\chrome.exe'
     : undefined);
 
 const viewports = [

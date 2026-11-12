@@ -25,6 +25,7 @@ export function App() {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [isPipelineRunning, setIsPipelineRunning] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
 
   // Sync theme with <html> class
   useEffect(() => {
@@ -77,14 +78,18 @@ export function App() {
         setIsDark={setIsDark}
         isPipelineRunning={isPipelineRunning}
         onTriggerPipeline={handleTriggerPipeline}
+        sidebarCollapsed={sidebarCollapsed}
+        setSidebarCollapsed={setSidebarCollapsed}
       />
 
       <div className="flex-1 flex overflow-hidden">
         {/* Desktop Sidebar (hidden on mobile, drawer handled by Navigation) */}
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} />
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full">
+        <main
+          className={`flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full transition-all duration-300 ${sidebarCollapsed ? 'lg:pl-0' : ''}`}
+        >
           {loading ? (
             <div className="py-24 text-center text-xs text-slate-400">
               Initializing HengSeng Sentiment Intelligence Engine...

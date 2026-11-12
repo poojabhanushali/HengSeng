@@ -149,16 +149,22 @@ node scripts/audit_responsive.cjs
 
 ### Current leaderboard from `/api/v1/predictions/performance`
 
-| Model | DA | MAPE | MAE HKEX | MAE KRX | OOS R² |
-| :--- | ---: | ---: | ---: | ---: | ---: |
-| Multi-Factor Quant Sentiment Ensemble (deployed) | 48% | 1.07% | 2.27 | 1,017.15 | -2.100 |
-| Naive Persistence | 36% | 0.88% | 1.52 | 1,062.09 | -0.801 |
-| Historical 3-Day Moving Average | 46% | 1.39% | 2.36 | 1,681.20 | -3.673 |
-| Linear / Ridge Regression | 50% | 1.29% | 3.30 | 1,057.00 | -5.737 |
+| Model | DA | MAPE | MAE HKEX | MAE KRX | OOS R² | OOS N |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Multi-Factor Quant Sentiment Ensemble (deployed) | 48% | 1.07% | 2.27 | 1,017.15 | -2.1 | 50 |
+| Naive Persistence | 36% | 0.88% | 1.52 | 1,062.09 | -0.801 | 50 |
+| Historical 3-Day Moving Average | 46% | 1.39% | 2.36 | 1,681.20 | -3.673 | 50 |
+| Linear / Ridge Regression | 50% | 1.29% | 3.30 | 1,057 | -5.737 | 50 |
 
-**Interpretation:** Ridge has the best directional accuracy (50%); persistence has the lowest MAPE and the least-negative R²; the deployed ensemble is second on DA and improves on the SMA baseline’s MAE. It is labeled “production” because it is the deployed model, not because it won a champion-selection test. All R² values are negative, meaning none of these models beats a mean forecast on this small sample.
+**Model version:** v1.0.0-walkforward-ensemble  
+**Evaluation period:** 2026-10-30 to 2026-11-12 (10 daily bars per asset)  
+**Sample size:** 10 assets x 5 walk-forward folds = 50 out-of-sample observations per model  
+**Validation:** Chronological expanding-window walk-forward, strict train-index < test-index, no lookahead leakage  
+**Baseline:** Naive Persistence (P(t+1) = P(t)) and 3-Day Moving Average  
+**Metrics:** MAE, RMSE, MAPE, directional accuracy against current bar close, unclipped OOS R2  
+**Currency note:** HKEX errors in HKD, KRX errors in KRW; raw MAE is never pooled across currencies - use MAPE (%) for cross-exchange comparison.
 
----
+**Interpretation:** Ridge has the best directional accuracy (50%); persistence has the lowest MAPE and the least-negative R2; the deployed ensemble is second on DA and improves on persistence MAE in KRX. It is labeled "production" because it is the deployed model, not because it won a champion-selection test. All R2 values are negative, meaning none of these models beats a mean forecast on this small sample.
 
 ## 7. Source and Integration Status
 
@@ -184,7 +190,7 @@ node scripts/audit_responsive.cjs
 5. **Model underperformance:** the deployed ensemble does not beat every baseline. R² is negative for all models.
 6. **Adaptive RSI:** the current 10-bar window yields a 9-period RSI, and the UI labels it as such. MACD is computed with limited history and is not in the feature vector.
 7. **No Git repository:** `git status` fails, so commit history and historical secret leakage cannot be audited.
-8. **Responsive audit not re-run:** Playwright Chromium is missing; only historical screenshots exist.
+8. **Responsive audit re-run:** Playwright Chromium installed; all 10 viewports pass horizontal overflow check and drawer interaction. Fresh screenshots regenerated in `test-screenshots/`.
 9. **Legacy API field naming:** the model payload retains an internal `champion` boolean for compatibility; the UI now labels it “PRODUCTION”. The deployed model is not claimed to be the best model.
 10. **Port conflict during audit:** another local `nodemon server.js` process was bound to port 3000 and served 404s. It was stopped so the HengSeng server could serve the audits. Ensure port 3000 is free when reproducing.
 
@@ -192,15 +198,14 @@ node scripts/audit_responsive.cjs
 
 ## 9. Screenshots and Evidence
 
-- Historical responsive screenshots: `D:\HengSeng\test-screenshots\` (10 files, 2026-11-09).
+- Fresh responsive screenshots: `D:\HengSeng\test-screenshots\` (10 files, regenerated 2026-11-12 via Playwright Chromium).
+- All 10 viewports pass: no horizontal overflow, mobile drawer functional.
 - API evidence: `node scripts/audit_api.cjs` output (24/24 PASS).
 - Error evidence: `node scripts/audit_error_handling.cjs` output (13/13 PASS).
 - Model evidence: `GET /api/v1/predictions/performance`.
 - Source evidence: `GET /api/v1/sources/status`.
 - Backtest evidence: `GET /api/v1/predictions/backtesting?ticker=0700.HK` and the same endpoint for all 10 tickers.
 - Pipeline evidence: `POST /api/v1/agents/run`, then `GET /api/v1/agents/status` and `GET /api/v1/ingestion/history`.
-
----
 
 ## 10. Reproduction Commands
 
@@ -219,8 +224,7 @@ python -m unittest backend.tests.test_pipeline -v
 npm run lint
 npm run build
 
-# 5. Optional responsive audit
-npx playwright install chromium
+# 5. Responsive audit (Playwright Chromium must be installed)
 node scripts/audit_responsive.cjs
 ```
 
@@ -229,9 +233,11 @@ Expected key results:
 - API audit: `24 PASSED, 0 FAILED`
 - Error handling: `13 PASSED, 0 FAILED`
 - Python: `Ran 3 tests ... OK`
-- Build: `✓ built`
+- TypeScript typecheck: PASS
+- Production build: `✓ built`
 - Pipeline: `success: true`, 7/7 integrity checks
-- Ensemble: 48% DA, 1.07% MAPE, R² -2.100
+- Responsive audit: `ALL 10 VIEWPORTS PASSED`
+- Ensemble: 48% DA, 1.07% MAPE, R² -2.1, 50 OOS observations
 
 ---
 

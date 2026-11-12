@@ -11,7 +11,10 @@ import {
   Filter,
   ChevronDown,
   ChevronRight,
+  Globe2,
 } from 'lucide-react';
+import { TranslatedText } from './TranslatedText';
+import { DropdownMenu } from './DropdownMenu';
 
 interface AssetExplorerViewProps {
   assets: Asset[];
@@ -388,6 +391,26 @@ export const AssetExplorerView: React.FC<AssetExplorerViewProps> = ({
                         >
                           <ExternalLink className="w-4 h-4" />
                         </button>
+                        <DropdownMenu
+                          trigger={<ChevronDown className="w-3 h-3" />}
+                          items={[
+                            {
+                              label: 'View Asset Terminal',
+                              onClick: () => onSelectAsset(asset),
+                              icon: <ExternalLink className="w-3 h-3" />,
+                            },
+                            {
+                              label: 'Compare Assets',
+                              onClick: () => console.log(`Compare ${asset.ticker}`),
+                              icon: <Globe2 className="w-3 h-3" />,
+                            },
+                            {
+                              label: 'Export Single Asset',
+                              onClick: () => console.log(`Export ${asset.ticker}`),
+                              icon: <Download className="w-3 h-3" />,
+                            },
+                          ]}
+                        />
                       </td>
                     </tr>
                   );
@@ -445,6 +468,21 @@ export const AssetExplorerView: React.FC<AssetExplorerViewProps> = ({
                   <div className="mt-2 flex items-center justify-between text-[9px] text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-1">
                     <span>{asset.exchange}</span>
                     <span>{asset.socialMentions} posts · {asset.newsMentions} news</span>
+                    <DropdownMenu
+                      trigger={<ChevronDown className="w-3 h-3" />}
+                      items={[
+                        {
+                          label: 'View Asset Terminal',
+                          onClick: () => onSelectAsset(asset),
+                          icon: <ExternalLink className="w-3 h-3" />,
+                        },
+                        {
+                          label: 'Export Asset Data',
+                          onClick: () => console.log(`Export ${asset.ticker}`),
+                          icon: <Download className="w-3 h-3" />,
+                        },
+                      ]}
+                    />
                   </div>
                 </div>
               );

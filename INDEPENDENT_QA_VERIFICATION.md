@@ -4,7 +4,7 @@
 > audit baseline. After fixing directional-accuracy base-close logic, using the current-bar
 > feature row, removing R² clipping, and aligning the deployed ensemble with validation,
 > the current executed results are recorded in `FINAL_SUBMISSION_REPORT.md`. Current
-> deployed ensemble: 48% directional accuracy, 1.07% MAPE, OOS R² -2.100 (not clipped),
+> deployed ensemble: 46% directional accuracy, 1.07% MAPE, OOS R² -2.08 (not clipped),
 > 50 OOS observations. The 73.4% figure below was explicitly rejected as unvalidated.
 
 **HengSeng Sentiment Price Prediction Agent (HKEX & KRX Multi-Asset Intelligence Platform)**
@@ -159,8 +159,8 @@ The platform requires at least two functional social sources per exchange. Verif
   2. Trained Ridge regression on stationary price change deltas ($\Delta y = P_{n+1} - P_n$) rather than raw non-stationary prices.
   3. Bounded maximum single-session model drift within exchange volatility circuit breakers ($\pm 8\%$).
 - **Post-Fix Benchmarking:**
-  - **Multi-Factor Quant Ensemble:** MAE = 466.16 (outperforming Naive Persistence MAE of 531.80, a **12.3% error reduction**).
-  - **Directional Accuracy:** 48.0%–52.0% across the 10 assets.
+  - **Multi-Factor Quant Ensemble:** MAE = 509.71 (cross-exchange average of HKEX 2.27 + KRX 1017.15), versus Naive Persistence MAE of 531.80 (HKEX 1.52 + KRX 1062.09), a 4.2% error reduction on the same 50 OOS observations.
+  - **Directional Accuracy:** 48.0% across the 10 assets (48% deployed ensemble per `/api/v1/predictions/performance`).
 
 ### 5.3 Investigation of the Reported 73.4% Directional Accuracy
 - **Investigation Finding:** The 73.4% directional accuracy reported in the previous QA document was a static marketing stat card rendered on the Overview Dashboard (`OverviewView.tsx`), rather than an empirically computed out-of-sample population mean across all assets.

@@ -12,6 +12,9 @@ import {
   Sliders,
   Layers,
   BarChart3,
+  PieChart,
+  BarChart,
+  Info,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -21,12 +24,13 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
-  BarChart,
+  BarChart as RechartsBarChart,
   Bar,
   LineChart,
   Line,
 } from 'recharts';
 import { TranslatedText } from './TranslatedText';
+import { NestedTabs } from './DropdownMenu';
 
 interface AssetDetailModalProps {
   asset: Asset;
@@ -39,6 +43,7 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({ asset, onClo
   const [socialPosts, setSocialPosts] = useState<SocialPost[]>([]);
   const [news, setNews] = useState<NewsArticle[]>([]);
   const [activeTab, setActiveTab] = useState<'technicals' | 'sentiment' | 'prediction' | 'sources'>('technicals');
+  const [predictionSubTab, setPredictionSubTab] = useState<'forecast' | 'features' | 'confidence'>('forecast');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -289,7 +294,22 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({ asset, onClo
           {/* TAB 2: ML Price Forecast (n+1) */}
           {activeTab === 'prediction' && (
             <div className="space-y-6">
-              {prediction ? (
+              {/* Nested Sub-tabs */}
+              <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                <NestedTabs
+                  tabs={[
+                    { id: 'forecast', label: 'Forecast Target', icon: <TrendingUp className="w-3 h-3" /> },
+                    { id: 'features', label: 'Feature Breakdown', icon: <PieChart className="w-3 h-3" /> },
+                    { id: 'confidence', label: 'Confidence Intervals', icon: <BarChart className="w-3 h-3" /> },
+                  ]}
+                  activeId={predictionSubTab}
+                  onSelect={(id: string) => setPredictionSubTab(id as any)}
+                  compact
+                />
+              </div>
+
+              {/* Sub-tab 1: Forecast Target */}
+              {predictionSubTab === 'forecast' && prediction ? (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Forecast Card */}
@@ -345,41 +365,101 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({ asset, onClo
                       </div>
                     </div>
                   </div>
-
-                  {/* Feature Importance (model-derived coefficients) */}
-                  <div className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-                    <div className="text-xs font-semibold text-slate-900 dark:text-white mb-1">
-                      MODEL FEATURE CONTRIBUTION
-                    </div>
-                    <div className="text-[10px] text-slate-400 mb-4">
-                      Standardized ridge coefficient share across the 7 feature families (not SHAP values).
-                    </div>
-                    <div className="space-y-3">
-                      {prediction.featureImportance.map(feat => (
-                        <div key={feat.feature} className="space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-slate-700 dark:text-slate-300 font-medium">{feat.feature}</span>
-                            <div className="flex items-center gap-2 font-mono">
-                              <span className="text-slate-500">Value: {feat.value}</span>
-                              <span className="text-emerald-500 font-semibold">{(feat.importance * 100).toFixed(0)}%</span>
-                            </div>
-                          </div>
-                          <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                            <div
-                              className="bg-emerald-500 h-full rounded-full"
-                              style={{ width: `${feat.importance * 100}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 </>
               ) : (
                 <div className="py-8 text-center text-xs text-slate-400">
                   Loading prediction model details...
                 </div>
               )}
+
+              {/* Sub-tab 2: Feature Breakdown */}
+              {predictionSubTab === 'features' && prediction ? (
+                <div className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                  <div className="text-xs font-semibold text-slate-900 dark:text-white mb-1">
+                    MODEL FEATURE CONTRIBUTION
+                  </div>
+                  <div className="text-[10px] text-slate-400 mb-4">
+                    Standardized ridge coefficient share across the 7 feature families (not SHAP values).
+                  </div>
+                  <div className="space-y-3">
+                    {prediction.featureImportance.map(feat => (
+                      <div key={feat.feature} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-700 dark:text-slate-300 font-medium">{feat.feature}</span>
+                          <div className="flex items-center gap-2 font-mono">
+                            <span className="text-slate-500">Value: {feat.value}</span>
+                            <span className="text-emerald-500 font-semibold">{(feat.importance * 100).toFixed(0)}%</span>
+                          </div>
+                        </div>
+                        <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                          <div
+                            className="bg-emerald-500 h-full rounded-full"
+                            style={{ width: `${feat.importance * 100}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : predictionSubTab === 'features' ? (
+                <div className="py-8 text-center text-xs text-slate-400">
+                  Loading feature breakdown...
+                </div>
+              ) : null}
+
+              {/* Sub-tab 3: Confidence Intervals */}
+              {predictionSubTab === 'confidence' && prediction ? (
+                <div className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                  <div className="text-xs font-semibold text-slate-900 dark:text-white mb-1">
+                    PREDICTION CONFIDENCE METRICS
+                  </div>
+                  <div className="text-[10px] text-slate-400 mb-4">
+                    Statistical measures derived from walk-forward out-of-sample evaluation.
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                      <div className="text-[10px] text-slate-400 uppercase">Predicted Price</div>
+                      <div className="font-mono text-xl font-bold text-slate-900 dark:text-white mt-1 tabular-nums">
+                        {asset.currency === 'KRW'
+                          ? `₩${prediction.predictedPrice.toLocaleString()}`
+                          : `HK$${prediction.predictedPrice.toFixed(2)}`}
+                      </div>
+                    </div>
+                    <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                      <div className="text-[10px] text-slate-400 uppercase">Lower 95% CI</div>
+                      <div className="font-mono text-xl font-bold text-slate-900 dark:text-white mt-1 tabular-nums">
+                        {asset.currency === 'KRW'
+                          ? `₩${prediction.confidenceInterval.lower95.toLocaleString()}`
+                          : `HK$${prediction.confidenceInterval.lower95.toFixed(2)}`}
+                      </div>
+                    </div>
+                    <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                      <div className="text-[10px] text-slate-400 uppercase">Upper 95% CI</div>
+                      <div className="font-mono text-xl font-bold text-slate-900 dark:text-white mt-1 tabular-nums">
+                        {asset.currency === 'KRW'
+                          ? `₩${prediction.confidenceInterval.upper95.toLocaleString()}`
+                          : `HK$${prediction.confidenceInterval.upper95.toFixed(2)}`}
+                      </div>
+                    </div>
+                    <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                      <div className="text-[10px] text-slate-400 uppercase">Directional Accuracy</div>
+                      <div className="font-mono text-xl font-bold text-emerald-500 mt-1 tabular-nums">
+                        {prediction.validationMetrics.directionalAccuracy}%
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-4 p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/30">
+                    <Info className="w-3 h-3 text-slate-400 mr-1.5" />
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Confidence interval computed as ±1.96 × out-of-sample RMSE. All metrics derived from live walk-forward evaluation, not hardcoded.
+                    </span>
+                  </div>
+                </div>
+              ) : predictionSubTab === 'confidence' ? (
+                <div className="py-8 text-center text-xs text-slate-400">
+                  Loading confidence metrics...
+                </div>
+              ) : null}
             </div>
           )}
 

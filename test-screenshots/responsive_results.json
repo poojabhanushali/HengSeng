@@ -3,682 +3,90 @@
     "name": "small-mobile",
     "width": 320,
     "height": 640,
-    "overflow": {
-      "docWidth": 320,
-      "winWidth": 320,
-      "bodyWidth": 320,
-      "hasOverflow": false
-    },
+    "overflow": null,
     "pass": false,
-    "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 404 (Not Found)"
-    ],
-    "sections": [
-      {
-        "id": "overview",
-        "pass": false,
-        "error": "Error: missing expected content: Directional Acc."
-      },
-      {
-        "id": "exchange",
-        "pass": false,
-        "error": "Error: missing expected content: Exchange Intelligence Comparison"
-      },
-      {
-        "id": "assets",
-        "pass": true
-      },
-      {
-        "id": "social",
-        "pass": true
-      },
-      {
-        "id": "news",
-        "pass": true
-      },
-      {
-        "id": "predictions",
-        "pass": true
-      },
-      {
-        "id": "performance",
-        "pass": true
-      },
-      {
-        "id": "backtesting",
-        "pass": true
-      },
-      {
-        "id": "reports",
-        "pass": false,
-        "error": "Error: missing expected content: Executive Reports"
-      },
-      {
-        "id": "sources",
-        "pass": false,
-        "error": "Error: missing expected content: Data Registry"
-      },
-      {
-        "id": "pipeline",
-        "pass": true
-      },
-      {
-        "id": "settings",
-        "pass": true
-      }
-    ]
+    "consoleErrors": [],
+    "sections": []
   },
   {
     "name": "mobile-360",
     "width": 360,
     "height": 800,
-    "overflow": {
-      "docWidth": 360,
-      "winWidth": 360,
-      "bodyWidth": 360,
-      "hasOverflow": false
-    },
+    "overflow": null,
     "pass": false,
-    "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 404 (Not Found)"
-    ],
-    "sections": [
-      {
-        "id": "overview",
-        "pass": false,
-        "error": "Error: missing expected content: Directional Acc."
-      },
-      {
-        "id": "exchange",
-        "pass": false,
-        "error": "Error: missing expected content: Exchange Intelligence Comparison"
-      },
-      {
-        "id": "assets",
-        "pass": true
-      },
-      {
-        "id": "social",
-        "pass": true
-      },
-      {
-        "id": "news",
-        "pass": true
-      },
-      {
-        "id": "predictions",
-        "pass": true
-      },
-      {
-        "id": "performance",
-        "pass": true
-      },
-      {
-        "id": "backtesting",
-        "pass": true
-      },
-      {
-        "id": "reports",
-        "pass": false,
-        "error": "Error: missing expected content: Executive Reports"
-      },
-      {
-        "id": "sources",
-        "pass": false,
-        "error": "Error: missing expected content: Data Registry"
-      },
-      {
-        "id": "pipeline",
-        "pass": true
-      },
-      {
-        "id": "settings",
-        "pass": true
-      }
-    ]
+    "consoleErrors": [],
+    "sections": []
   },
   {
     "name": "iphone-se",
     "width": 375,
     "height": 812,
-    "overflow": {
-      "docWidth": 375,
-      "winWidth": 375,
-      "bodyWidth": 375,
-      "hasOverflow": false
-    },
+    "overflow": null,
     "pass": false,
-    "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 404 (Not Found)"
-    ],
-    "sections": [
-      {
-        "id": "overview",
-        "pass": false,
-        "error": "Error: missing expected content: Directional Acc."
-      },
-      {
-        "id": "exchange",
-        "pass": false,
-        "error": "Error: missing expected content: Exchange Intelligence Comparison"
-      },
-      {
-        "id": "assets",
-        "pass": true
-      },
-      {
-        "id": "social",
-        "pass": true
-      },
-      {
-        "id": "news",
-        "pass": true
-      },
-      {
-        "id": "predictions",
-        "pass": true
-      },
-      {
-        "id": "performance",
-        "pass": true
-      },
-      {
-        "id": "backtesting",
-        "pass": true
-      },
-      {
-        "id": "reports",
-        "pass": false,
-        "error": "Error: missing expected content: Executive Reports"
-      },
-      {
-        "id": "sources",
-        "pass": false,
-        "error": "Error: missing expected content: Data Registry"
-      },
-      {
-        "id": "pipeline",
-        "pass": true
-      },
-      {
-        "id": "settings",
-        "pass": true
-      }
-    ]
+    "consoleErrors": [],
+    "sections": []
   },
   {
     "name": "iphone-14",
     "width": 390,
     "height": 844,
-    "overflow": {
-      "docWidth": 390,
-      "winWidth": 390,
-      "bodyWidth": 390,
-      "hasOverflow": false
-    },
+    "overflow": null,
     "pass": false,
-    "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 404 (Not Found)"
-    ],
-    "sections": [
-      {
-        "id": "overview",
-        "pass": false,
-        "error": "Error: missing expected content: Directional Acc."
-      },
-      {
-        "id": "exchange",
-        "pass": false,
-        "error": "Error: missing expected content: Exchange Intelligence Comparison"
-      },
-      {
-        "id": "assets",
-        "pass": true
-      },
-      {
-        "id": "social",
-        "pass": true
-      },
-      {
-        "id": "news",
-        "pass": true
-      },
-      {
-        "id": "predictions",
-        "pass": true
-      },
-      {
-        "id": "performance",
-        "pass": true
-      },
-      {
-        "id": "backtesting",
-        "pass": true
-      },
-      {
-        "id": "reports",
-        "pass": false,
-        "error": "Error: missing expected content: Executive Reports"
-      },
-      {
-        "id": "sources",
-        "pass": false,
-        "error": "Error: missing expected content: Data Registry"
-      },
-      {
-        "id": "pipeline",
-        "pass": true
-      },
-      {
-        "id": "settings",
-        "pass": true
-      }
-    ]
+    "consoleErrors": [],
+    "sections": []
   },
   {
     "name": "large-mobile-430",
     "width": 430,
     "height": 932,
-    "overflow": {
-      "docWidth": 430,
-      "winWidth": 430,
-      "bodyWidth": 430,
-      "hasOverflow": false
-    },
+    "overflow": null,
     "pass": false,
-    "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 404 (Not Found)"
-    ],
-    "sections": [
-      {
-        "id": "overview",
-        "pass": false,
-        "error": "Error: missing expected content: Directional Acc."
-      },
-      {
-        "id": "exchange",
-        "pass": false,
-        "error": "Error: missing expected content: Exchange Intelligence Comparison"
-      },
-      {
-        "id": "assets",
-        "pass": true
-      },
-      {
-        "id": "social",
-        "pass": true
-      },
-      {
-        "id": "news",
-        "pass": true
-      },
-      {
-        "id": "predictions",
-        "pass": true
-      },
-      {
-        "id": "performance",
-        "pass": true
-      },
-      {
-        "id": "backtesting",
-        "pass": true
-      },
-      {
-        "id": "reports",
-        "pass": false,
-        "error": "Error: missing expected content: Executive Reports"
-      },
-      {
-        "id": "sources",
-        "pass": false,
-        "error": "Error: missing expected content: Data Registry"
-      },
-      {
-        "id": "pipeline",
-        "pass": true
-      },
-      {
-        "id": "settings",
-        "pass": true
-      }
-    ]
+    "consoleErrors": [],
+    "sections": []
   },
   {
     "name": "tablet-768",
     "width": 768,
     "height": 1024,
-    "overflow": {
-      "docWidth": 768,
-      "winWidth": 768,
-      "bodyWidth": 768,
-      "hasOverflow": false
-    },
+    "overflow": null,
     "pass": false,
-    "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 404 (Not Found)"
-    ],
-    "sections": [
-      {
-        "id": "overview",
-        "pass": false,
-        "error": "Error: missing expected content: Directional Acc."
-      },
-      {
-        "id": "exchange",
-        "pass": false,
-        "error": "Error: missing expected content: Exchange Intelligence Comparison"
-      },
-      {
-        "id": "assets",
-        "pass": true
-      },
-      {
-        "id": "social",
-        "pass": true
-      },
-      {
-        "id": "news",
-        "pass": true
-      },
-      {
-        "id": "predictions",
-        "pass": true
-      },
-      {
-        "id": "performance",
-        "pass": true
-      },
-      {
-        "id": "backtesting",
-        "pass": true
-      },
-      {
-        "id": "reports",
-        "pass": false,
-        "error": "Error: missing expected content: Executive Reports"
-      },
-      {
-        "id": "sources",
-        "pass": false,
-        "error": "Error: missing expected content: Data Registry"
-      },
-      {
-        "id": "pipeline",
-        "pass": true
-      },
-      {
-        "id": "settings",
-        "pass": true
-      }
-    ]
+    "consoleErrors": [],
+    "sections": []
   },
   {
     "name": "tablet-landscape",
     "width": 1024,
     "height": 768,
-    "overflow": {
-      "docWidth": 1024,
-      "winWidth": 1024,
-      "bodyWidth": 1024,
-      "hasOverflow": false
-    },
+    "overflow": null,
     "pass": false,
-    "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 404 (Not Found)"
-    ],
-    "sections": [
-      {
-        "id": "overview",
-        "pass": false,
-        "error": "Error: missing expected content: Directional Acc."
-      },
-      {
-        "id": "exchange",
-        "pass": false,
-        "error": "Error: missing expected content: Exchange Intelligence Comparison"
-      },
-      {
-        "id": "assets",
-        "pass": true
-      },
-      {
-        "id": "social",
-        "pass": true
-      },
-      {
-        "id": "news",
-        "pass": true
-      },
-      {
-        "id": "predictions",
-        "pass": true
-      },
-      {
-        "id": "performance",
-        "pass": true
-      },
-      {
-        "id": "backtesting",
-        "pass": true
-      },
-      {
-        "id": "reports",
-        "pass": true
-      },
-      {
-        "id": "sources",
-        "pass": true
-      },
-      {
-        "id": "pipeline",
-        "pass": true
-      },
-      {
-        "id": "settings",
-        "pass": true
-      }
-    ]
+    "consoleErrors": [],
+    "sections": []
   },
   {
     "name": "laptop-1280",
     "width": 1280,
     "height": 720,
-    "overflow": {
-      "docWidth": 1280,
-      "winWidth": 1280,
-      "bodyWidth": 1280,
-      "hasOverflow": false
-    },
+    "overflow": null,
     "pass": false,
-    "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 404 (Not Found)"
-    ],
-    "sections": [
-      {
-        "id": "overview",
-        "pass": false,
-        "error": "Error: missing expected content: Directional Acc."
-      },
-      {
-        "id": "exchange",
-        "pass": false,
-        "error": "Error: missing expected content: Exchange Intelligence Comparison"
-      },
-      {
-        "id": "assets",
-        "pass": true
-      },
-      {
-        "id": "social",
-        "pass": true
-      },
-      {
-        "id": "news",
-        "pass": true
-      },
-      {
-        "id": "predictions",
-        "pass": true
-      },
-      {
-        "id": "performance",
-        "pass": true
-      },
-      {
-        "id": "backtesting",
-        "pass": true
-      },
-      {
-        "id": "reports",
-        "pass": true
-      },
-      {
-        "id": "sources",
-        "pass": true
-      },
-      {
-        "id": "pipeline",
-        "pass": true
-      },
-      {
-        "id": "settings",
-        "pass": true
-      }
-    ]
+    "consoleErrors": [],
+    "sections": []
   },
   {
     "name": "desktop-1440",
     "width": 1440,
     "height": 900,
-    "overflow": {
-      "docWidth": 1440,
-      "winWidth": 1440,
-      "bodyWidth": 1440,
-      "hasOverflow": false
-    },
+    "overflow": null,
     "pass": false,
-    "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 404 (Not Found)"
-    ],
-    "sections": [
-      {
-        "id": "overview",
-        "pass": false,
-        "error": "Error: missing expected content: Directional Acc."
-      },
-      {
-        "id": "exchange",
-        "pass": false,
-        "error": "Error: missing expected content: Exchange Intelligence Comparison"
-      },
-      {
-        "id": "assets",
-        "pass": true
-      },
-      {
-        "id": "social",
-        "pass": true
-      },
-      {
-        "id": "news",
-        "pass": true
-      },
-      {
-        "id": "predictions",
-        "pass": true
-      },
-      {
-        "id": "performance",
-        "pass": true
-      },
-      {
-        "id": "backtesting",
-        "pass": true
-      },
-      {
-        "id": "reports",
-        "pass": true
-      },
-      {
-        "id": "sources",
-        "pass": true
-      },
-      {
-        "id": "pipeline",
-        "pass": true
-      },
-      {
-        "id": "settings",
-        "pass": true
-      }
-    ]
+    "consoleErrors": [],
+    "sections": []
   },
   {
     "name": "large-desktop-1920",
     "width": 1920,
     "height": 1080,
-    "overflow": {
-      "docWidth": 1920,
-      "winWidth": 1920,
-      "bodyWidth": 1920,
-      "hasOverflow": false
-    },
+    "overflow": null,
     "pass": false,
-    "consoleErrors": [
-      "Failed to load resource: the server responded with a status of 404 (Not Found)"
-    ],
-    "sections": [
-      {
-        "id": "overview",
-        "pass": false,
-        "error": "Error: missing expected content: Directional Acc."
-      },
-      {
-        "id": "exchange",
-        "pass": false,
-        "error": "Error: missing expected content: Exchange Intelligence Comparison"
-      },
-      {
-        "id": "assets",
-        "pass": true
-      },
-      {
-        "id": "social",
-        "pass": true
-      },
-      {
-        "id": "news",
-        "pass": true
-      },
-      {
-        "id": "predictions",
-        "pass": true
-      },
-      {
-        "id": "performance",
-        "pass": true
-      },
-      {
-        "id": "backtesting",
-        "pass": true
-      },
-      {
-        "id": "reports",
-        "pass": true
-      },
-      {
-        "id": "sources",
-        "pass": true
-      },
-      {
-        "id": "pipeline",
-        "pass": true
-      },
-      {
-        "id": "settings",
-        "pass": true
-      }
-    ]
+    "consoleErrors": [],
+    "sections": []
   }
 ]

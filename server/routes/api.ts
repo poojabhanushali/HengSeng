@@ -40,26 +40,65 @@ function buildExecutiveReport(exchange: ExchangeCode | 'ALL'): ExecutiveReport {
   const totalM = filtered.reduce((s, a) => s + a.socialMentions, 0);
   const totalN = filtered.reduce((s, a) => s + a.newsMentions, 0);
 
-  // Real out-of-sample directional accuracy of the deployed production model for the covered assets
+  // Aggregate production-model (ensemble) walk-forward metrics across covered assets using identical OOS observations
   const accuracies: number[] = [];
-  let positiveDriftCount = 0;
+  const maes: number[] = [];
+  const mapes: number[] = [];
+  const rmses: number[] = [];
+  const r2s: number[] = [];
+  const baselineImps: number[] = [];
   let sampleTotal = 0;
+  let positiveDriftCount = 0;
+  let modelName = 'Multi-Factor Quant Sentiment Ensemble';
   for (const a of filtered) {
     const evalRes = mlEngine.evaluateModelsForTicker(a.ticker);
     if (evalRes?.modelPerformances?.length) {
-      accuracies.push(evalRes.modelPerformances[0].directionalAccuracy);
-      sampleTotal += evalRes.modelPerformances[0].sampleCount;
+      const perf = evalRes.modelPerformances[0]; // index 0 is the deployed ensemble
+      modelName = perf.modelName;
+      accuracies.push(perf.directionalAccuracy);
+      maes.push(perf.mae);
+      mapes.push(perf.mape);
+      rmses.push(perf.rmse);
+      r2s.push(perf.r2Score);
+      baselineImps.push(perf.baselineImprovement);
+      sampleTotal += perf.sampleCount;
     }
     if (evalRes?.predictionDetail && evalRes.predictionDetail.predictedChangePercent > 0) {
       positiveDriftCount++;
     }
   }
-  const modelAcc = accuracies.length
-    ? Number((accuracies.reduce((s, v) => s + v, 0) / accuracies.length).toFixed(1))
-    : 0;
+  const avg = (arr: number[]) => arr.reduce((s, v) => s + v, 0) / (arr.length || 1);
+  const modelAcc = accuracies.length ? Number((avg(accuracies)).toFixed(1)) : 0;
+  const modelMae = maes.length ? Number((avg(maes)).toFixed(2)) : 0;
+  const modelMape = mapes.length ? Number((avg(mapes)).toFixed(2)) : 0;
+  const modelRmse = rmses.length ? Number((avg(rmses)).toFixed(2)) : 0;
+  const modelR2 = r2s.length ? Number((avg(r2s)).toFixed(3)) : 0;
+  const modelBaseImp = baselineImps.length ? Number((avg(baselineImps)).toFixed(1)) : 0;
+
+  // Determine bar timestamp range for evaluation period disclosure
+  let firstBar = '';
+  let lastBar = '';
+  for (const a of filtered) {
+    const bars = marketRepo.getBars(a.ticker);
+    if (bars.length > 0) {
+      if (!firstBar || bars[0].timestamp < firstBar) firstBar = bars[0].timestamp;
+      if (!lastBar || bars[bars.length - 1].timestamp > lastBar) lastBar = bars[bars.length - 1].timestamp;
+    }
+  }
+  const evaluationPeriod = firstBar && lastBar
+    ? `${firstBar.split('T')[0]} to ${lastBar.split('T')[0]} (${filtered.length} assets, ${Math.round((filtered.length || 1) * 10)} daily bars)`
+    : 'No price history available';
 
   const scopeLabel = exchange === 'ALL' ? 'Cross-exchange' : exchange;
-  const summaryProse = `${scopeLabel} coverage spans ${filtered.length} monitored assets with ${totalM} social discussions and ${totalN} news articles analyzed. Average engagement-weighted social sentiment is ${avgSent >= 0 ? '+' : ''}${avgSent} points. ${positiveDriftCount} of ${filtered.length} assets currently carry a positive next-trading-session (n+1) model drift. Chronological walk-forward validation reports an average production-model directional accuracy of ${modelAcc}% across ${sampleTotal} out-of-sample observations.`;
+  const summaryProse = `${scopeLabel} coverage spans ${filtered.length} monitored assets with ${totalM} social discussions and ${totalN} news articles analyzed. Average engagement-weighted social sentiment is ${avgSent >= 0 ? '+' : ''}${avgSent} points. ${positiveDriftCount} of ${filtered.length} assets currently carry a positive next-trading-session (n+1) model drift. Chronological walk-forward validation reports an average production-model directional accuracy of ${modelAcc}% across ${sampleTotal} out-of-sample observations. MAE ${modelMae}, MAPE ${modelMape}%, RMSE ${modelRmse}, OOS R² ${modelR2}.`;
+
+  const limitations: string[] = [
+    `Small sample: ${filtered.length} assets × 5 walk-forward folds = ${sampleTotal} out-of-sample observations; results are unstable and not suitable for live capital allocation.`,
+    'OHLCV market data is deterministic seeded (local fallback), not a live vendor feed.',
+    'Social and news data are curated local fallback datasets; no live Apify or Exa integration is active without credentials.',
+    'All models show negative out-of-sample R² on this sample — none beats a simple mean forecast.',
+    'The deployed ensemble is labeled "production" because it is deployed, not because it outperforms every baseline on every metric.',
+  ];
 
   return {
     id: exchange === 'ALL' ? 'rep_all_latest' : `rep_${exchange.toLowerCase()}_latest`,
@@ -74,6 +113,16 @@ function buildExecutiveReport(exchange: ExchangeCode | 'ALL'): ExecutiveReport {
     modelDirectionalAccuracy: modelAcc,
     summaryProse,
     assetsRanked: sortedBySentiment,
+    modelName,
+    modelVersion: 'v1.0.0-walkforward-ensemble',
+    evaluationPeriod,
+    sampleSize: sampleTotal,
+    mae: modelMae,
+    mape: modelMape,
+    rmse: modelRmse,
+    r2Score: modelR2,
+    baselineImprovementPercent: modelBaseImp,
+    limitations,
   };
 }
 
@@ -81,6 +130,7 @@ function buildExecutiveReport(exchange: ExchangeCode | 'ALL'): ExecutiveReport {
 const generatedReports: ExecutiveReport[] = [
   buildExecutiveReport('HKEX'),
   buildExecutiveReport('KRX'),
+  buildExecutiveReport('ALL'),
 ];
 
 // Health Check
@@ -578,11 +628,13 @@ apiRouter.get('/agents/status', (req: Request, res: Response) => {
 
 // Reports Endpoints
 apiRouter.get('/reports', (req: Request, res: Response) => {
-  // Refresh the two standing briefings so displayed metrics always match current engine state
+  // Refresh all standing briefings so displayed metrics always match current engine state
   const hk = generatedReports.find(r => r.id === 'rep_hkex_latest');
   if (hk) Object.assign(hk, buildExecutiveReport('HKEX'), { id: 'rep_hkex_latest' });
   const kr = generatedReports.find(r => r.id === 'rep_krx_latest');
   if (kr) Object.assign(kr, buildExecutiveReport('KRX'), { id: 'rep_krx_latest' });
+  const all = generatedReports.find(r => r.id === 'rep_all_latest');
+  if (all) Object.assign(all, buildExecutiveReport('ALL'), { id: 'rep_all_latest' });
 
   res.json({
     count: generatedReports.length,
