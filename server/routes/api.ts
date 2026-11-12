@@ -772,12 +772,13 @@ apiRouter.get('/sources/status', (req: Request, res: Response) => {
       {
         id: 'apify_social',
         name: 'Apify Social Scraping',
-        mode: 'local-fallback',
-        modeLabel: 'Local Fallback Dataset',
+        mode: socialRepo.getApifyStatus().configured ? 'live' : 'local-fallback',
+        modeLabel: socialRepo.getApifyStatus().configured ? 'LIVE Apify Actors' : 'Local Fallback Dataset',
         credentialConfigured: Boolean(currentSettings.apifyApiToken),
-        liveIntegrationAvailable: false,
-        detail:
-          'No Apify actor runner is wired into this build, so social records always come from the curated local multilingual dataset even when APIFY_API_TOKEN is set.',
+        liveIntegrationAvailable: true,
+        detail: socialRepo.getApifyStatus().configured
+          ? `Apify API token configured — live actor runs execute on pipeline execution. Social records currently served: ${posts.length} posts.`
+          : 'Apify actor runner is wired but no APIFY_API_TOKEN configured — serving the curated local fallback dataset. Add APIFY_API_TOKEN and Actor IDs to .env for live scraping.',
         lastUpdated: newestPost,
         ageMinutes: minutesSince(newestPost),
         recordCount: posts.length,

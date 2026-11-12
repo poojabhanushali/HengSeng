@@ -244,6 +244,7 @@ export class MultiAgentOrchestrator {
 
   private refreshIdleAgentMetrics() {
     const q = this.collectQualityMetrics();
+    const apifyStatus = socialRepo.getApifyStatus();
 
     const set = (n: number, items: number, quality: number, message: string) => {
       const agent = this.agentStates.find(a => a.agentNumber === n);
@@ -259,7 +260,9 @@ export class MultiAgentOrchestrator {
     set(1, q.barsTotal, q.barContinuity,
       `Loaded ${q.barsTotal} bars across ${q.assets.length} assets; ${q.barContinuity}% have >= 10 sessions.`);
     set(2, q.posts.length, q.socialCoverage,
-      `Curated local dataset: ${q.posts.length} posts across ${q.platformCount} platform feeds; Apify runner not wired.`);
+      apifyStatus.configured
+        ? `LIVE Apify: ${q.posts.length} posts across ${q.platformCount} platform feeds.`
+        : `Curated local dataset: ${q.posts.length} posts across ${q.platformCount} platform feeds; Apify token not configured.`);
     set(3, q.news.length, q.newsCoverage,
       newsRepo.getApiKey()
         ? `EXA_API_KEY detected — live search available; ${q.news.length} curated articles loaded.`
@@ -334,14 +337,15 @@ export class MultiAgentOrchestrator {
 
       // Step 2: Agent 2 - Social Scraping
       const t2 = Date.now();
-      this.updateAgentStatus(2, 'running', 'Ingesting curated social posts from the configured platform feeds...');
-      await delay(250);
-      socialRepo.ingestSeedPosts();
+      this.updateAgentStatus(2, 'running', 'Ingesting social posts from configured platform feeds...');
+      const apifyResult = await socialRepo.ingestApifyPosts();
       q = this.collectQualityMetrics();
       this.updateAgentStatus(
         2,
-        'completed',
-        `Collected ${q.posts.length} curated posts across ${q.platformCount} platform feeds (Apify runner not wired).`,
+        apifyResult.live ? 'completed' : 'completed',
+        apifyResult.live
+          ? `LIVE Apify: ${apifyResult.posted} posts from ${q.platformCount} platform feeds.${apifyResult.errors.length > 0 ? ` ${apifyResult.errors.length} actor error(s).` : ''}`
+          : `Apify not configured — ${q.posts.length} curated posts across ${q.platformCount} platform feeds (local fallback).`,
         q.posts.length,
         q.socialCoverage,
         Date.now() - t2

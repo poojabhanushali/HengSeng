@@ -2,6 +2,113 @@ import { ExchangeCode, PositionSignal, SentimentDirection, SocialPost } from '..
 import crypto from 'crypto';
 import POST_SEEDS from './socialPosts.json';
 
+const APIFY_BASE_URL = 'https://api.apify.com/v2';
+
+interface ApifyActorConfig {
+  platform: 'LIHKG' | 'Telegram' | 'Naver Finance' | 'Daum Finance' | 'Futu/Moomoo';
+  actorId: string;
+}
+
+function getApifyConfig(): { token: string | null; actorIds: Record<string, string> | null } {
+  const token = process.env.APIFY_API_TOKEN || null;
+  const raw = token ? {
+    'LIHKG': process.env.APIFY_LIHKG_ACTOR_ID || '',
+    'Telegram': process.env.APIFY_TELEGRAM_ACTOR_ID || '',
+    'Naver Finance': process.env.APIFY_NAVER_ACTOR_ID || '',
+    'Daum Finance': process.env.APIFY_DAUM_ACTOR_ID || '',
+  } : null;
+  const actorIds = raw && Object.values(raw).some((id): id is string => Boolean(id) && id.trim().length > 0)
+    ? raw
+    : null;
+  return { token, actorIds };
+}
+
+async function runApifyActor(actorId: string, token: string, input: Record<string, any> = {}): Promise<any[]> {
+  const runRes = await fetch(`${APIFY_BASE_URL}/acts/${encodeURIComponent(actorId)}/runs?token=${encodeURIComponent(token)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!runRes.ok) {
+    throw new Error(`Apify actor run failed: HTTP ${runRes.status}`);
+  }
+  const run = await runRes.json();
+  const runId = run.data?.id;
+  const datasetId = run.data?.defaultDatasetId;
+  if (!runId || !datasetId) {
+    throw new Error('Apify actor run returned no runId or datasetId');
+  }
+
+  // Poll for completion (up to ~60 seconds)
+  let attempts = 0;
+  let runData: any = null;
+  while (attempts < 30) {
+    const statusRes = await fetch(`${APIFY_BASE_URL}/actor-runs/${runId}?token=${encodeURIComponent(token)}`);
+    if (!statusRes.ok) throw new Error(`Apify run status check failed: HTTP ${statusRes.status}`);
+    runData = await statusRes.json();
+    if (runData.data?.status !== 'RUNNING' && runData.data?.status !== 'READY') break;
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    attempts++;
+  }
+
+  if (!runData || runData.data?.status !== 'SUCCEEDED') {
+    throw new Error(`Apify actor run did not succeed: status=${runData?.data?.status ?? 'unknown'}`);
+  }
+
+  const itemsRes = await fetch(`${APIFY_BASE_URL}/datasets/${datasetId}/items?token=${encodeURIComponent(token)}`);
+  if (!itemsRes.ok) {
+    throw new Error(`Apify dataset fetch failed: HTTP ${itemsRes.status}`);
+  }
+  return await itemsRes.json();
+}
+
+function normalizeApifyItem(item: any, platform: string, defaultExchange: ExchangeCode): SocialPost | null {
+  if (!item || typeof item !== 'object') return null;
+  const text = item.text || item.title || item.content || item.body || '';
+  if (!text || text.trim().length === 0) return null;
+
+  const author = item.author || item.user || item.username || 'unknown';
+  const publishedAt = item.publishedAt || item.createdAt || item.timestamp || new Date().toISOString();
+  const likes = Number(item.likes || item.upvotes || 0) || 0;
+  const comments = Number(item.comments || 0) || 0;
+  const shares = Number(item.shares || 0) || 0;
+  const views = Number(item.views || 0) || 0;
+
+  const sentiment = analyzeMultilingualSentiment(text);
+  const engagement = computeEngagementScore(likes, comments, shares, views);
+  const hash = createPostHash(platform, author, text);
+
+  const tickerMatch = text.match(/\b(\d{4,5}\.(?:HK|KS))\b/);
+  const ticker = tickerMatch ? tickerMatch[1] : defaultExchange === 'HKEX' ? '0700.HK' : '005930.KS';
+
+  return {
+    id: `apify_${hash}`,
+    exchange: defaultExchange,
+    ticker,
+    assetName: '',
+    platform: platform as 'LIHKG' | 'Telegram' | 'Naver Finance' | 'Daum Finance' | 'Futu/Moomoo',
+    url: item.url || `https://apify.com/actor-run/${platform.toLowerCase()}`,
+    author,
+    authorFollowers: item.authorFollowers || 0,
+    authorInfluenceScore: 0.5,
+    text,
+    textEn: undefined,
+    originalLanguage: sentiment.detectedLanguage,
+    publishedAt,
+    collectedAt: new Date().toISOString(),
+    likes,
+    comments,
+    shares,
+    views,
+    engagementScore: engagement,
+    sentimentScore: sentiment.sentimentScore,
+    sentimentLabel: sentiment.sentimentLabel,
+    confidence: sentiment.confidence,
+    extractedPhrases: sentiment.extractedPhrases,
+    expressedPosition: sentiment.expressedPosition,
+  };
+}
+
 // Multilingual financial lexicon with polarity weights (-100 to +100)
 interface LexiconEntry {
   phrase: string;
@@ -197,6 +304,56 @@ export class SocialScraperRepository {
 
       this.posts.push(post);
     }
+  }
+
+  public async ingestApifyPosts(): Promise<{ posted: number; errors: string[]; live: boolean }> {
+    const errors: string[] = [];
+    const { token, actorIds } = getApifyConfig();
+    const posted: number[] = [];
+
+    if (!token || !actorIds) {
+      return { posted: 0, errors: [], live: false };
+    }
+
+    const actorEntries: ApifyActorConfig[] = [
+      { platform: 'LIHKG', actorId: actorIds['LIHKG'] || '' },
+      { platform: 'Telegram', actorId: actorIds['Telegram'] || '' },
+      { platform: 'Naver Finance', actorId: actorIds['Naver Finance'] || '' },
+      { platform: 'Daum Finance', actorId: actorIds['Daum Finance'] || '' },
+    ];
+
+    let anyLive = false;
+
+    for (const actor of actorEntries) {
+      if (!actor.actorId || actor.actorId.trim().length === 0) continue;
+      try {
+        const items = await runApifyActor(actor.actorId, token, { maxItems: 20 });
+        let count = 0;
+        for (const item of items) {
+          const post = normalizeApifyItem(item, actor.platform, 'HKEX');
+          if (post) {
+            this.addPost(post);
+            count++;
+          }
+        }
+        posted.push(count);
+        if (count > 0) anyLive = true;
+      } catch (err: any) {
+        errors.push(`${actor.platform} (${actor.actorId}): ${err?.message || err}`);
+      }
+    }
+
+    return { posted: posted.reduce((a, b) => a + b, 0), errors, live: anyLive };
+  }
+
+  public getApifyStatus(): { configured: boolean; actorIds: Record<string, boolean> } {
+    const { token, actorIds } = getApifyConfig();
+    return {
+      configured: Boolean(token && actorIds),
+      actorIds: Object.fromEntries(
+        Object.entries(actorIds ?? {}).map(([k, v]) => [k, Boolean(v && v.trim().length > 0)])
+      ),
+    };
   }
 
   public getAllPosts(filter?: { ticker?: string; exchange?: ExchangeCode; platform?: string }): SocialPost[] {
