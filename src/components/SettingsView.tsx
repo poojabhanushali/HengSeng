@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SystemSettings, LanguageCode, LanguagePrefs } from '../types';
+import { SystemSettings, LanguageCode, LanguagePrefs, User } from '../types';
 import { Settings, Save, CheckCircle2, Key, Sliders, Shield, Database, Globe2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 
@@ -21,7 +21,7 @@ const LANGUAGE_OPTIONS: { id: LanguageCode; label: string; desc: string }[] = [
   },
 ];
 
-export const SettingsView: React.FC = () => {
+export const SettingsView: React.FC<{ user: User | null }> = ({ user }) => {
   const { prefs, setPrefs } = useLanguage();
   const [settings, setSettings] = useState<SystemSettings>({
     apifyApiToken: '',
@@ -123,7 +123,7 @@ export const SettingsView: React.FC = () => {
                 className="w-full font-mono py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
               <span className="text-[10px] text-slate-400 mt-1 block">
-                Stored for future use only — the Apify actor runner is not wired in this build.
+                Stored for future use only - the Apify actor runner is not wired in this build.
               </span>
             </div>
 
@@ -150,7 +150,7 @@ export const SettingsView: React.FC = () => {
           <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
             <Database className="w-4 h-4 text-emerald-500" />
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-              Apify Actor Scraper IDs (HKEX & KRX) — Not Wired
+              Apify Actor Scraper IDs (HKEX & KRX) - Not Wired
             </h2>
           </div>
 

@@ -24,7 +24,7 @@ import {
   MoreHorizontal,
   ChevronLeft,
 } from 'lucide-react';
-import { ExchangeCode } from '../types';
+import { ExchangeCode, User, UserRole } from '../types';
 
 export type ActiveTab =
   | 'overview'
@@ -51,7 +51,12 @@ interface NavigationProps {
   onTriggerPipeline: () => void;
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
+  user: User | null;
+  onLogout: () => void;
 }
+
+const isAdmin = (user: User | null): boolean => user?.role === 'admin';
+const isManagerOrAdmin = (user: User | null): boolean => user?.role === 'admin' || user?.role === 'manager';
 
 const GROUPED_NAV: { group: string; items: { id: ActiveTab; label: string; icon: React.ComponentType<{ className?: string }> }[] }[] = [
   {
@@ -114,6 +119,8 @@ export const Navigation: React.FC<NavigationProps> = ({
   onTriggerPipeline,
   sidebarCollapsed,
   setSidebarCollapsed,
+  user,
+  onLogout,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);
@@ -208,32 +215,41 @@ export const Navigation: React.FC<NavigationProps> = ({
               <MoreHorizontal className="w-4 h-4" />
             </button>
             {overflowOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#0c1017] border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-1 z-50">
-                {SECONDARY_TABS.map(id => {
-                  const group = GROUPED_NAV.find(g => g.items.some(i => i.id === id))?.group || '';
-                  const item = GROUPED_NAV.find(g => g.items.some(i => i.id === id))?.items.find(i => i.id === id);
-                  if (!item) return null;
-                  const isActive = activeTab === id;
-                  return (
-                    <button
-                      key={id}
-                      onClick={() => handleNavClick(id)}
-                      className={`flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg transition-colors text-left w-full ${
-                        isActive
-                          ? 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900'
-                      }`}
-                    >
-                      <item.icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
-                      <span className="truncate">{item.label}</span>
-                      <span className="ml-auto text-[10px] text-slate-400 font-mono">{group}</span>
-                    </button>
-                  );
-                })}
+              <div className="absolute right-0 mt-2 w-[260px] bg-white dark:bg-[#0c1017] border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl p-1 z-50 max-h-[85vh] overflow-y-auto">
+                {GROUPED_NAV.map(group => (
+                  <div key={group.group} className="mb-1">
+                    <div className="px-3 py-1 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                      {group.group}
+                    </div>
+                    <div className="space-y-0">
+                      {group.items.map(item => {
+                        const isActive = activeTab === item.id;
+                        const Icon = item.icon;
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => { handleNavClick(item.id); setOverflowOpen(false); }}
+                            className={`flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg transition-colors text-left w-full ${
+                              isActive
+                                ? 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400'
+                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-900'
+                            }`}
+                          >
+                            <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
+                            <span className="truncate">{item.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {group.group !== 'System' && (
+                      <div className="border-t border-slate-100 dark:border-slate-800 my-1"></div>
+                    )}
+                  </div>
+                ))}
                 <div className="border-t border-slate-100 dark:border-slate-800 my-1"></div>
                 <button
-                  onClick={() => setIsDark(!isDark)}
-                  className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg text-left w-full text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors"
+                  onClick={() => { setIsDark(!isDark); setOverflowOpen(false); }}
+                  className="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-lg text-left w-full text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors"
                 >
                   {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
                   <span>Toggle Theme</span>
@@ -242,14 +258,37 @@ export const Navigation: React.FC<NavigationProps> = ({
             )}
           </div>
 
-          {/* Theme Toggle (Mobile only, also shown in drawer on mobile) */}
-          <button
-            onClick={() => setIsDark(!isDark)}
-            aria-label="Toggle color theme"
-            className="sm:hidden p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
-          >
-            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
+          {/* User profile & logout */}
+          {user && (
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setIsDark(!isDark)}
+                aria-label="Toggle color theme"
+                className="sm:hidden p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
+              >
+                {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </button>
+              <div className="hidden sm:flex items-center gap-2 px-2 py-1.5 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200/60 dark:border-slate-800 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-6 h-6 rounded-full bg-emerald-600 flex items-center justify-center text-[10px] font-bold text-white">
+                    {user.username.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="font-medium text-slate-900 dark:text-slate-100 leading-tight">{user.username}</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 capitalize">{user.role}</div>
+                  </div>
+                </div>
+                <button
+                  onClick={onLogout}
+                  className="ml-2 p-1 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                  aria-label="Sign out"
+                >
+                  <span className="sr-only">Sign out</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 

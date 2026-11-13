@@ -28,7 +28,7 @@ const formatAge = (minutes: number | null): string => {
   return `${Math.floor(hours / 24)} d ago`;
 };
 
-const formatTimestamp = (iso: string | null): string => (iso ? `${iso.split('T')[0]} ${iso.split('T')[1]?.slice(0, 8)} UTC` : '—');
+const formatTimestamp = (iso: string | null): string => (iso ? `${iso.split('T')[0]} ${iso.split('T')[1]?.slice(0, 8)} UTC` : '-');
 
 export const DataSourcesView: React.FC = () => {
   const [settings, setSettings] = useState<any>(null);
@@ -127,8 +127,8 @@ export const DataSourcesView: React.FC = () => {
 
           <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs font-mono">
             <MetaRow label="Auth Token" value={settings?.apifyApiToken ? 'Configured (masked)' : 'Not configured'} />
-            <MetaRow label="Records Served" value={apify ? `${apify.recordCount} posts · ${apify.platforms?.length ?? 0} platforms` : '—'} />
-            <MetaRow label="Platforms" value={apify?.platforms?.join(' · ') || '—'} />
+            <MetaRow label="Records Served" value={apify ? `${apify.recordCount} posts · ${apify.platforms?.length ?? 0} platforms` : '-'} />
+            <MetaRow label="Platforms" value={apify?.platforms?.join(' · ') || '-'} />
             <MetaRow label="Last Updated" value={formatTimestamp(apify?.lastUpdated ?? null)} />
             <MetaRow label="Freshness" value={formatAge(apify?.ageMinutes ?? null)} />
           </div>
@@ -152,9 +152,9 @@ export const DataSourcesView: React.FC = () => {
 
           <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs font-mono">
             <MetaRow label="API Key" value={exa?.credentialConfigured ? 'Configured (masked)' : 'Not configured'} />
-            <MetaRow label="Live Articles" value={exa ? `${exa.liveRecordCount ?? 0} live / ${exa.recordCount} total` : '—'} />
+            <MetaRow label="Live Articles" value={exa ? `${exa.liveRecordCount ?? 0} live / ${exa.recordCount} total` : '-'} />
             <MetaRow label="Last Live Call" value={formatTimestamp(exa?.lastLiveSearchAt ?? null)} />
-            <MetaRow label="Publishers" value={exa?.publishers?.slice(0, 3).join(', ') || '—'} />
+            <MetaRow label="Publishers" value={exa?.publishers?.slice(0, 3).join(', ') || '-'} />
             <MetaRow label="Freshness" value={formatAge(exa?.ageMinutes ?? null)} />
           </div>
         </div>
@@ -176,9 +176,9 @@ export const DataSourcesView: React.FC = () => {
           </p>
 
           <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs font-mono">
-            <MetaRow label="Provider" value={market?.provider || settings?.marketDataProvider || '—'} />
-            <MetaRow label="Supported Tickers" value={market ? `${market.tickersCovered ?? 0} of 10 covered` : '—'} />
-            <MetaRow label="Price Bars" value={market ? `${market.recordCount} bars` : '—'} />
+            <MetaRow label="Provider" value={market?.provider || settings?.marketDataProvider || '-'} />
+            <MetaRow label="Supported Tickers" value={market ? `${market.tickersCovered ?? 0} of 10 covered` : '-'} />
+            <MetaRow label="Price Bars" value={market ? `${market.recordCount} bars` : '-'} />
             <MetaRow label="Last Updated" value={formatTimestamp(market?.lastUpdated ?? null)} />
             <MetaRow label="Freshness" value={formatAge(market?.ageMinutes ?? null)} />
           </div>
@@ -201,11 +201,11 @@ export const DataSourcesView: React.FC = () => {
             <div className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
               Model Performance (Walk-Forward OOS)
             </div>
-            <MetaRow label="Directional accuracy" value={`${status.modelPerformance?.directionalAccuracyPercent ?? '—'}%`} />
-            <MetaRow label="Normalized error (MAPE)" value={`${status.modelPerformance?.mapePercent ?? '—'}%`} />
-            <MetaRow label="HKEX MAE" value={`HK$${status.modelPerformance?.hkexAverageMaeHKD ?? '—'}`} />
-            <MetaRow label="KRX MAE" value={`₩${status.modelPerformance?.krxAverageMaeKRW ?? '—'}`} />
-            <MetaRow label="OOS observations" value={`${status.modelPerformance?.totalOutOfSampleObservations ?? '—'} (${status.modelPerformance?.foldsPerAsset ?? '—'} folds × 10 assets)`} />
+            <MetaRow label="Directional accuracy" value={`${status.modelPerformance?.directionalAccuracyPercent ?? '-'}%`} />
+            <MetaRow label="Normalized error (MAPE)" value={`${status.modelPerformance?.mapePercent ?? '-'}%`} />
+            <MetaRow label="HKEX MAE" value={`HK$${status.modelPerformance?.hkexAverageMaeHKD ?? '-'}`} />
+            <MetaRow label="KRX MAE" value={`₩${status.modelPerformance?.krxAverageMaeKRW ?? '-'}`} />
+            <MetaRow label="OOS observations" value={`${status.modelPerformance?.totalOutOfSampleObservations ?? '-'} (${status.modelPerformance?.foldsPerAsset ?? '-'} folds × 10 assets)`} />
           </div>
         </div>
       )}

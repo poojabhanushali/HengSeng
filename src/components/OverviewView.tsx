@@ -75,7 +75,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       count: subset.length,
       avgSentiment: Number((subset.reduce((s, a) => s + a.overallSentiment, 0) / (subset.length || 1)).toFixed(1)),
       socialVolume: subset.reduce((s, a) => s + a.socialMentions, 0),
-      topBullish: topBullish ? topBullish.ticker : '—',
+      topBullish: topBullish ? topBullish.ticker : '-',
     };
   };
   const hkStats = exchangeStats('HKEX');
@@ -159,7 +159,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         <div className="p-3 sm:p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
           <div className="text-[10px] sm:text-[11px] font-medium text-slate-500 uppercase tracking-wider">Directional Acc.</div>
           <div className="text-xl sm:text-2xl font-bold font-mono text-emerald-500 mt-1 tabular-nums">
-            {modelPerf ? `${modelPerf.directionalAccuracyPercent}%` : '—'}
+            {modelPerf ? `${modelPerf.directionalAccuracyPercent}%` : '-'}
           </div>
           <div className="text-[10px] sm:text-[11px] text-slate-400 mt-1">
             {modelPerf
@@ -215,8 +215,17 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     />
                   ))}
                 </Bar>
+                {/* Selected sentiment readout (always visible, high contrast) */}
               </BarChart>
             </ResponsiveContainer>
+          </div>
+          <div className="mt-3">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-slate-500 dark:text-slate-400">Sentiment Range</span>
+              <span className="font-mono font-bold text-slate-900 dark:text-emerald-300 tabular-nums">
+                {`${sentimentDistributionData.length > 0 ? Math.min(...sentimentDistributionData.map(d => d.sentiment)) : 0} to ${sentimentDistributionData.length > 0 ? Math.max(...sentimentDistributionData.map(d => d.sentiment)) : 0}`}
+              </span>
+            </div>
           </div>
         </div>
 

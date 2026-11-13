@@ -1,6 +1,7 @@
 import { ExchangeCode, NewsArticle, SentimentDirection } from '../../src/types';
-import { analyzeMultilingualSentiment } from './socialScraper';
+import { analyzeMultilingualSentiment } from './sentiment';
 import NEWS_SEEDS from './news.json';
+import { appDb, uuidv4 } from '../db/sqlite';
 
 export interface ExaSearchOptions {
   query: string;
@@ -20,7 +21,7 @@ export class NewsIntelligenceRepository {
   private liveArticleCount = 0;
 
   constructor() {
-    this.ingestSeedNews();
+    this.loadFromDb();
   }
 
   public setApiKey(key: string) {
@@ -31,7 +32,6 @@ export class NewsIntelligenceRepository {
     return this.exaApiKey;
   }
 
-  // Observability for LIVE vs fallback classification in the sources status endpoint
   public getLiveIntegrationStats(): {
     credentialConfigured: boolean;
     liveSearchInvoked: boolean;
@@ -46,37 +46,72 @@ export class NewsIntelligenceRepository {
     };
   }
 
+  private loadFromDb() {
+    const db = appDb.db;
+    const count = appDb.selectOne<{ c: number }>('SELECT COUNT(*) AS c FROM news_articles')!.c;
+    if (count === 0) {
+      this.ingestSeedNews();
+      return;
+    }
+    const rows = db.prepare('SELECT * FROM news_articles ORDER BY published_at DESC').all() as any[];
+    this.articles = rows.map(r => this.rowToArticle(r));
+    // Recompute + persist sentiment so stored values match the curated text
+    const upsert = db.prepare(`
+      UPDATE news_articles SET sentiment_score=@sentimentScore, sentiment_label=@sentimentLabel, confidence=@confidence WHERE id=@id
+    `);
+    for (const a of this.articles) {
+      const s = analyzeMultilingualSentiment(`${a.title}. ${a.summary}`);
+      a.sentimentScore = s.sentimentScore;
+      a.sentimentLabel = s.sentimentLabel;
+      a.confidence = s.confidence;
+      upsert.run({ id: a.id, sentimentScore: a.sentimentScore, sentimentLabel: a.sentimentLabel, confidence: a.confidence });
+    }
+  }
+
   public ingestSeedNews() {
     const now = new Date();
-    // Local curated fallback dataset replaces any previously served live Exa records
     this.liveArticleCount = 0;
     this.liveSearchInvoked = false;
     this.lastLiveSearchAt = null;
     const rawNews = NEWS_SEEDS;
 
-    this.articles = rawNews.map((n, idx) => {
-      const pubDate = new Date(now.getTime() - n.daysAgo * 24 * 60 * 60 * 1000);
-      const sentiment = analyzeMultilingualSentiment(`${n.title}. ${n.summary}`);
-
-      return {
-        id: `news_${idx + 1}`,
-        ticker: n.ticker,
-        assetName: n.assetName,
-        exchange: n.exchange as ExchangeCode,
-        title: n.title,
-        url: n.url,
-        publisher: n.publisher,
-        publishedAt: pubDate.toISOString(),
-        retrievedAt: new Date().toISOString(),
-        searchQuery: n.searchQuery,
-        relevanceScore: n.relevanceScore,
-        summary: n.summary,
-        sentimentScore: sentiment.sentimentScore,
-        sentimentLabel: sentiment.sentimentLabel,
-        confidence: sentiment.confidence,
-        keyThemes: n.keyThemes,
-      };
+    const db = appDb.db;
+    const tx = db.transaction(() => {
+      const insertNews = db.prepare(`
+        INSERT OR IGNORE INTO news_articles (
+          id,ticker,asset_name,exchange,title,title_en,url,publisher,published_at,retrieved_at,
+          search_query,relevance_score,summary,summary_en,sentiment_score,sentiment_label,confidence,key_themes
+        ) VALUES (
+          @id,@ticker,@assetName,@exchange,@title,@titleEn,@url,@publisher,@publishedAt,@retrievedAt,
+          @searchQuery,@relevanceScore,@summary,@summaryEn,@sentimentScore,@sentimentLabel,@confidence,@keyThemes
+        );
+      `);
+      for (const [idx, n] of rawNews.entries()) {
+        const pubDate = new Date(now.getTime() - n.daysAgo * 24 * 60 * 60 * 1000);
+        const id = `news_${idx + 1}`;
+        const sentiment = analyzeMultilingualSentiment(`${n.title}. ${n.summary}`);
+        const article: NewsArticle = {
+          id, ticker: n.ticker, assetName: n.assetName, exchange: n.exchange as ExchangeCode,
+          title: n.title, url: n.url, publisher: n.publisher, publishedAt: pubDate.toISOString(),
+          retrievedAt: new Date().toISOString(), searchQuery: n.searchQuery, relevanceScore: n.relevanceScore,
+          summary: n.summary, sentimentScore: sentiment.sentimentScore, sentimentLabel: sentiment.sentimentLabel,
+          confidence: sentiment.confidence, keyThemes: n.keyThemes,
+        };
+        this.articles.push(article);
+        insertNews.run({
+          id, ticker: n.ticker, assetName: n.assetName, exchange: n.exchange, title: n.title,
+          titleEn: (n as any).titleEn ?? null, url: n.url, publisher: n.publisher,
+          publishedAt: pubDate.toISOString(), retrievedAt: new Date().toISOString(),
+          searchQuery: n.searchQuery, relevanceScore: n.relevanceScore, summary: n.summary,
+          summaryEn: (n as any).summaryEn ?? null, sentimentScore: sentiment.sentimentScore,
+          sentimentLabel: sentiment.sentimentLabel, confidence: sentiment.confidence,
+          keyThemes: JSON.stringify(n.keyThemes),
+        });
+      }
     });
+    tx();
+
+    this.articles.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
   }
 
   public getAllNews(filter?: { ticker?: string; exchange?: ExchangeCode }): NewsArticle[] {
@@ -94,10 +129,8 @@ export class NewsIntelligenceRepository {
     return this.articles.find(a => a.id === id);
   }
 
-  // Live Exa API search integration
   public async searchWithExa(query: string, ticker: string, assetName: string, exchange: ExchangeCode): Promise<NewsArticle[]> {
     if (!this.exaApiKey) {
-      // Return existing matched news for this ticker if no API key is configured
       return this.getAllNews({ ticker });
     }
 
@@ -112,10 +145,7 @@ export class NewsIntelligenceRepository {
           query: `${query} financial news earnings stock`,
           numResults: 5,
           useAutoprompt: true,
-          contents: {
-            text: true,
-            summary: true,
-          },
+          contents: { text: true, summary: true },
         }),
       });
 
@@ -128,13 +158,21 @@ export class NewsIntelligenceRepository {
       const results: NewsArticle[] = [];
 
       if (data.results && Array.isArray(data.results)) {
+        const db = appDb.db;
+        const insertNews = db.prepare(`
+          INSERT OR IGNORE INTO news_articles (
+            id,ticker,asset_name,exchange,title,title_en,url,publisher,published_at,retrieved_at,
+            search_query,relevance_score,summary,summary_en,sentiment_score,sentiment_label,confidence,key_themes
+          ) VALUES (
+            @id,@ticker,@assetName,@exchange,@title,@titleEn,@url,@publisher,@publishedAt,@retrievedAt,
+            @searchQuery,@relevanceScore,@summary,@summaryEn,@sentimentScore,@sentimentLabel,@confidence,@keyThemes
+          );
+        `);
         for (const item of data.results) {
           const sentiment = analyzeMultilingualSentiment(`${item.title || ''}. ${item.summary || item.text || ''}`);
           const article: NewsArticle = {
             id: `exa_${item.id || Math.random().toString(36).substring(2, 9)}`,
-            ticker,
-            assetName,
-            exchange,
+            ticker, assetName, exchange,
             title: item.title || 'Financial Intelligence Update',
             url: item.url || '#',
             publisher: new URL(item.url || 'https://news.google.com').hostname.replace('www.', ''),
@@ -149,9 +187,17 @@ export class NewsIntelligenceRepository {
             keyThemes: ['Exa Discovery', 'Market Insight'],
           };
 
-          // Deduplicate by URL
           if (!this.articles.some(a => a.url === article.url)) {
             this.articles.unshift(article);
+            insertNews.run({
+              id: article.id, ticker, assetName, exchange, title: article.title,
+              titleEn: article.titleEn ?? null, url: article.url, publisher: article.publisher,
+              publishedAt: article.publishedAt, retrievedAt: article.retrievedAt,
+              searchQuery: query, relevanceScore: article.relevanceScore, summary: article.summary,
+              summaryEn: article.summaryEn ?? null, sentimentScore: article.sentimentScore,
+              sentimentLabel: article.sentimentLabel, confidence: article.confidence,
+              keyThemes: JSON.stringify(article.keyThemes),
+            });
           }
           results.push(article);
         }
@@ -172,6 +218,29 @@ export class NewsIntelligenceRepository {
 
   public getNewsSentimentSummary(ticker: string) {
     return summarizeNewsArticles(this.articles.filter(a => a.ticker === ticker));
+  }
+
+  private rowToArticle(r: any): NewsArticle {
+    return {
+      id: r.id,
+      ticker: r.ticker,
+      assetName: r.asset_name,
+      exchange: r.exchange as ExchangeCode,
+      title: r.title,
+      titleEn: r.title_en ?? undefined,
+      url: r.url,
+      publisher: r.publisher,
+      publishedAt: r.published_at,
+      retrievedAt: r.retrieved_at,
+      searchQuery: r.search_query,
+      relevanceScore: r.relevance_score,
+      summary: r.summary,
+      summaryEn: r.summary_en ?? undefined,
+      sentimentScore: r.sentiment_score,
+      sentimentLabel: r.sentiment_label as SentimentDirection,
+      confidence: r.confidence,
+      keyThemes: JSON.parse(r.key_themes || '[]'),
+    };
   }
 }
 

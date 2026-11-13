@@ -120,10 +120,10 @@ export const ModelPerformanceView: React.FC = () => {
                     {m.averageMapePercent}%
                   </td>
                   <td className="py-3 px-3 text-right text-slate-700 dark:text-slate-300 tabular-nums">
-                    {m.hkexAverageMae !== null && m.hkexAverageMae !== undefined ? `HK$${m.hkexAverageMae}` : '—'}
+                    {m.hkexAverageMae !== null && m.hkexAverageMae !== undefined ? `HK$${m.hkexAverageMae}` : '-'}
                   </td>
                   <td className="py-3 px-3 text-right text-slate-700 dark:text-slate-300 tabular-nums">
-                    {m.krxAverageMae !== null && m.krxAverageMae !== undefined ? `₩${m.krxAverageMae.toLocaleString()}` : '—'}
+                    {m.krxAverageMae !== null && m.krxAverageMae !== undefined ? `₩${m.krxAverageMae.toLocaleString()}` : '-'}
                   </td>
                   <td className="py-3 px-3 text-right text-slate-700 dark:text-slate-300 tabular-nums">
                     {m.averageR2}
@@ -175,13 +175,13 @@ export const ModelPerformanceView: React.FC = () => {
                 <div>
                   <div className="text-[9px] text-slate-400">MAE HKEX (HKD)</div>
                   <div className="font-mono text-slate-700 dark:text-slate-300">
-                    {m.hkexAverageMae !== null && m.hkexAverageMae !== undefined ? `HK$${m.hkexAverageMae}` : '—'}
+                    {m.hkexAverageMae !== null && m.hkexAverageMae !== undefined ? `HK$${m.hkexAverageMae}` : '-'}
                   </div>
                 </div>
                 <div>
                   <div className="text-[9px] text-slate-400">MAE KRX (KRW)</div>
                   <div className="font-mono text-slate-700 dark:text-slate-300">
-                    {m.krxAverageMae !== null && m.krxAverageMae !== undefined ? `₩${m.krxAverageMae.toLocaleString()}` : '—'}
+                    {m.krxAverageMae !== null && m.krxAverageMae !== undefined ? `₩${m.krxAverageMae.toLocaleString()}` : '-'}
                   </div>
                 </div>
                 <div>

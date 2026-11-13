@@ -205,6 +205,22 @@ export interface SystemSettings {
 
 export type LanguageCode = 'en' | 'zh-HK' | 'ko';
 
+export type UserRole = 'admin' | 'manager' | 'viewer';
+
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  role: UserRole;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface AuthTokens {
+  accessToken: string;
+  user: User;
+}
+
 export interface LanguagePrefs {
   en: boolean;
   'zh-HK': boolean;

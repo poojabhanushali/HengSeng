@@ -141,7 +141,7 @@ export const PipelineMonitorView: React.FC<PipelineMonitorViewProps> = ({
                 <div className="flex justify-between">
                   <span>Quality Score:</span>
                   <span className={`font-bold ${agent.qualityScore >= 100 ? 'text-emerald-500' : 'text-amber-500'}`}>
-                    {agent.qualityScore > 0 ? `${agent.qualityScore}/100` : '—'}
+                    {agent.qualityScore > 0 ? `${agent.qualityScore}/100` : '-'}
                   </span>
                 </div>
                 <div className="pt-1 text-[10px] text-slate-400 truncate" title={agent.message}>

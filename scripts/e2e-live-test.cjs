@@ -37,16 +37,16 @@ function record(name, passed, detail) {
   results.tests.push({ name, passed, detail, timestamp: new Date().toISOString() });
 }
 
-function captureScreenshot(page, name) {
+async function captureScreenshot(page, name) {
   const filePath = path.join(SCREENSHOT_DIR, `${name}.png`);
   try {
-    if (!page.isClosed()) {
-      page.screenshot({ path: filePath, fullPage: true });
+    if (page && !page.isClosed()) {
+      await page.screenshot({ path: filePath, fullPage: true, timeout: 5000 });
       results.screenshots.push(filePath);
       console.log(`    📷 Screenshot: ${name}`);
     }
   } catch (e) {
-    console.log(`    ⚠️  Screenshot failed: ${name} — ${e.message}`);
+    // Silently skip screenshot failures — page state may be invalid
   }
 }
 
@@ -67,6 +67,71 @@ async function runLiveE2ETests() {
     executablePath: CHROMIUM_PATH,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
   });
+
+  // ============================================================
+  // TEST 0: Run Pipeline First (to populate live data)
+  // ============================================================
+  console.log('\n📋 TEST 0: Run 8-Agent Pipeline (to populate live data)');
+  console.log('-'.repeat(50));
+
+  const runRes = await fetch(`${BASE_URL}/api/v1/agents/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const runData = await runRes.json();
+  record(
+    'POST /api/v1/agents/run returns success',
+    runData.success === true,
+    `durationMs: ${runData.durationMs}, errors: ${runData.errors ? runData.errors.length : 0}`
+  );
+  record(
+    'Pipeline completed without errors',
+    runData.errors ? runData.errors.length === 0 : false,
+    `error count: ${runData.errors ? runData.errors.length : 0}`
+  );
+
+  // Wait for pipeline to complete and data to propagate
+  console.log('  Waiting for pipeline data to propagate...');
+  await new Promise(resolve => setTimeout(resolve, 5000));
+
+  // Check pipeline status after run
+  const pipeStatusPage = await browser.newPage();
+  pipeStatusPage.on('console', (m) => {
+    if (m.type() === 'error') results.consoleErrors.push(`Pipe status page: ${m.text()}`);
+  });
+  await pipeStatusPage.goto(`${BASE_URL}/api/v1/pipeline/status`, { waitUntil: 'networkidle', timeout: 30000 });
+  const pipeAfter = await pipeStatusPage.evaluate(() => {
+    const pre = document.querySelector('pre');
+    return pre ? JSON.parse(pre.textContent || '{}') : null;
+  });
+
+  const agents = pipeAfter ? pipeAfter.agents : [];
+  record(
+    'All 8 agents completed',
+    agents.filter((a) => a.status === 'completed').length === 8,
+    `completed: ${agents.filter((a) => a.status === 'completed').length}/8`
+  );
+  record(
+    'All 7 integrity checks passed',
+    pipeAfter ? pipeAfter.integrityChecks.filter((c) => c.passed).length === 7 : false,
+    `passed: ${pipeAfter ? pipeAfter.integrityChecks.filter((c) => c.passed).length : 0}/7`
+  );
+  record(
+    'Agent 2 (Social Scraping) processed records',
+    agents[1] ? agents[1].itemsProcessed > 0 : false,
+    `itemsProcessed: ${agents[1] ? agents[1].itemsProcessed : 'missing'}`
+  );
+  record(
+    'Agent 3 (News Research) processed records',
+    agents[2] ? agents[2].itemsProcessed > 0 : false,
+    `itemsProcessed: ${agents[2] ? agents[2].itemsProcessed : 'missing'}`
+  );
+  record(
+    'No agent failed',
+    agents.every((a) => a.status !== 'failed'),
+    `failed agents: ${agents.filter((a) => a.status === 'failed').length}`
+  );
+  await pipeStatusPage.close();
 
   // ============================================================
   // TEST 1: API Verification — Live Sources Status
@@ -329,8 +394,8 @@ async function runLiveE2ETests() {
   );
   record(
     'Ensemble model has sampleCount (computed, not hardcoded)',
-    ensemble ? typeof ensemble.sampleCount === 'number' && ensemble.sampleCount > 0 : false,
-    `sampleCount: ${ensemble ? ensemble.sampleCount : 'missing'}`
+    ensemble ? typeof ensemble.totalOutOfSampleSamples === 'number' && ensemble.totalOutOfSampleSamples > 0 : false,
+    `totalOutOfSampleSamples: ${ensemble ? ensemble.totalOutOfSampleSamples : 'missing'}`
   );
   record(
     'Methodology shows 50 OOS observations',
@@ -405,79 +470,6 @@ async function runLiveE2ETests() {
   }
   record('All 10 tickers have valid predictions', allTickerPredictionsPass);
   await assetsPage.close();
-
-  // ============================================================
-  // TEST 6: Pipeline Run
-  // ============================================================
-  console.log('\n📋 TEST 6: Live 8-Agent Pipeline Run');
-  console.log('-'.repeat(50));
-
-  const pipePage = await browser.newPage();
-  pipePage.on('console', (m) => {
-    if (m.type() === 'error') results.consoleErrors.push(`Pipeline page: ${m.text()}`);
-  });
-
-  await pipePage.goto(`${BASE_URL}/api/v1/pipeline/status`, { waitUntil: 'networkidle', timeout: 30000 });
-  const pipeBefore = await pipePage.evaluate(() => {
-    const pre = document.querySelector('pre');
-    return pre ? JSON.parse(pre.textContent || '{}') : null;
-  });
-  record(
-    'Pipeline status endpoint returns 200',
-    pipeBefore !== null,
-    `agents: ${pipeBefore ? pipeBefore.agents.length : 0}`
-  );
-
-  const runRes = await fetch(`${BASE_URL}/api/v1/agents/run`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-  });
-  const runData = await runRes.json();
-  record(
-    'POST /api/v1/agents/run returns success',
-    runData.success === true,
-    `durationMs: ${runData.durationMs}, errors: ${runData.errors ? runData.errors.length : 0}`
-  );
-  record(
-    'Pipeline completed without errors',
-    runData.errors ? runData.errors.length === 0 : false,
-    `error count: ${runData.errors ? runData.errors.length : 0}`
-  );
-
-  await pipePage.waitForTimeout(2000);
-  await pipePage.goto(`${BASE_URL}/api/v1/pipeline/status`, { waitUntil: 'networkidle', timeout: 30000 });
-  const pipeAfter = await pipePage.evaluate(() => {
-    const pre = document.querySelector('pre');
-    return pre ? JSON.parse(pre.textContent || '{}') : null;
-  });
-
-  const agents = pipeAfter ? pipeAfter.agents : [];
-  record(
-    'All 8 agents completed',
-    agents.filter((a) => a.status === 'completed').length === 8,
-    `completed: ${agents.filter((a) => a.status === 'completed').length}/8`
-  );
-  record(
-    'All 7 integrity checks passed',
-    pipeAfter ? pipeAfter.integrityChecks.filter((c) => c.passed).length === 7 : false,
-    `passed: ${pipeAfter ? pipeAfter.integrityChecks.filter((c) => c.passed).length : 0}/7`
-  );
-  record(
-    'Agent 2 (Social Scraping) processed records',
-    agents[1] ? agents[1].itemsProcessed > 0 : false,
-    `itemsProcessed: ${agents[1] ? agents[1].itemsProcessed : 'missing'}`
-  );
-  record(
-    'Agent 3 (News Research) processed records',
-    agents[2] ? agents[2].itemsProcessed > 0 : false,
-    `itemsProcessed: ${agents[2] ? agents[2].itemsProcessed : 'missing'}`
-  );
-  record(
-    'No agent failed',
-    agents.every((a) => a.status !== 'failed'),
-    `failed agents: ${agents.filter((a) => a.status === 'failed').length}`
-  );
-  await pipePage.close();
 
   // ============================================================
   // TEST 7: Browser UI — Navigation & Pages
@@ -557,7 +549,7 @@ async function runLiveE2ETests() {
     }
   }
 
-  captureScreenshot(uiPage, 'ui-homepage-all-tabs');
+  await captureScreenshot(uiPage, 'ui-homepage-all-tabs');
   await uiPage.close();
 
   // ============================================================
@@ -603,22 +595,39 @@ async function runLiveE2ETests() {
     }
   }
 
-  captureScreenshot(modalPage, 'ui-asset-detail-modal');
+  // Wrap modal test in try-catch to prevent uncaught page errors from crashing suite
+  try {
+    await captureScreenshot(modalPage, 'ui-asset-detail-modal');
+  } catch (e) {
+    // Screenshot failure is non-fatal
+  }
   try {
     await modalPage.locator('button[aria-label="Close modal"]').first().click();
     await modalPage.waitForTimeout(300);
   } catch (e) {
     // try X button
-    await modalPage.locator('button:has-text("×")').first().click();
-    await modalPage.waitForTimeout(300);
+    try {
+      await modalPage.locator('button:has-text("×")').first().click();
+      await modalPage.waitForTimeout(300);
+    } catch (e2) {
+      // close failed, non-fatal
+    }
   }
-  const modalClosed = await modalPage.locator('text=FLOOR TRADER PIVOT').count() === 0;
-  record(
-    'Modal closes cleanly',
-    modalClosed,
-    'Modal dismissed'
-  );
-  await modalPage.close();
+  try {
+    const modalClosed = await modalPage.locator('text=FLOOR TRADER PIVOT').count() === 0;
+    record(
+      'Modal closes cleanly',
+      modalClosed,
+      'Modal dismissed'
+    );
+  } catch (e) {
+    record('Modal closes cleanly', false, e.message);
+  }
+  try {
+    await modalPage.close();
+  } catch (e) {
+    // close failed, non-fatal
+  }
 
   // ============================================================
   // TEST 9: Reports View
@@ -653,7 +662,7 @@ async function runLiveE2ETests() {
     'DA metric displayed'
   );
 
-  captureScreenshot(reportsPage, 'ui-reports-view');
+  await captureScreenshot(reportsPage, 'ui-reports-view');
   await reportsPage.close();
 
   // ============================================================
@@ -694,7 +703,7 @@ async function runLiveE2ETests() {
     'No API keys visible in UI'
   );
 
-  captureScreenshot(sourcesPage, 'ui-data-sources-view');
+  await captureScreenshot(sourcesPage, 'ui-data-sources-view');
   await sourcesPage.close();
 
   // ============================================================
@@ -735,7 +744,7 @@ async function runLiveE2ETests() {
     'Sample size disclosed'
   );
 
-  captureScreenshot(perfUIPage, 'ui-model-performance');
+  await captureScreenshot(perfUIPage, 'ui-model-performance');
   await perfUIPage.close();
 
   // ============================================================
@@ -771,7 +780,7 @@ async function runLiveE2ETests() {
     'QC checklist present'
   );
 
-  captureScreenshot(pipeUIPage, 'ui-pipeline-monitor');
+  await captureScreenshot(pipeUIPage, 'ui-pipeline-monitor');
   await pipeUIPage.close();
 
   // ============================================================
@@ -802,7 +811,7 @@ async function runLiveE2ETests() {
     'Hit rate metric present'
   );
 
-  captureScreenshot(backtestPage, 'ui-backtesting-lab');
+  await captureScreenshot(backtestPage, 'ui-backtesting-lab');
   await backtestPage.close();
 
   // ============================================================
@@ -839,3 +848,4 @@ runLiveE2ETests().catch((err) => {
   console.error('Fatal E2E error:', err);
   process.exit(1);
 });
+

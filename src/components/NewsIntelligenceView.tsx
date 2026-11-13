@@ -159,14 +159,14 @@ export const NewsIntelligenceView: React.FC = () => {
                   />
                 </h3>
 
-                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-sans">
+                <div className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-sans">
                   <TranslatedText
                     original={art.summary}
                     translation={art.summaryEn}
                     originalLang="en"
                     className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-sans"
                   />
-                </p>
+                </div>
 
                 {art.keyThemes && art.keyThemes.length > 0 && (
                   <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400">

@@ -15,19 +15,20 @@ import { DataSourcesView } from './components/DataSourcesView';
 import { PipelineMonitorView } from './components/PipelineMonitorView';
 import { SettingsView } from './components/SettingsView';
 import { Sidebar } from './components/Sidebar';
+import { LoginView } from './components/LoginView';
 import { LanguageProvider } from './contexts/LanguageContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
-export function App() {
+export function AppInner() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
   const [selectedExchange, setSelectedExchange] = useState<ExchangeCode | 'ALL'>('ALL');
   const [isDark, setIsDark] = useState<boolean>(true);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [isPipelineRunning, setIsPipelineRunning] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  const { user, logout, isAuthenticated } = useAuth();
 
-  // Sync theme with <html> class
   useEffect(() => {
     if (isDark) {
       document.documentElement.classList.add('dark');
@@ -45,8 +46,6 @@ export function App() {
       }
     } catch (err) {
       console.error('Failed to fetch assets:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -67,8 +66,7 @@ export function App() {
   };
 
   return (
-    <LanguageProvider>
-      <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f17] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f17] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors">
       <Navigation
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -80,22 +78,22 @@ export function App() {
         onTriggerPipeline={handleTriggerPipeline}
         sidebarCollapsed={sidebarCollapsed}
         setSidebarCollapsed={setSidebarCollapsed}
+        user={user}
+        onLogout={logout}
       />
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Desktop Sidebar (hidden on mobile, drawer handled by Navigation) */}
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} collapsed={sidebarCollapsed} />
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          collapsed={sidebarCollapsed}
+          user={user}
+        />
 
-        {/* Main Content Area */}
         <main
           className={`flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full transition-all duration-300 ${sidebarCollapsed ? 'lg:pl-0' : ''}`}
         >
-          {loading ? (
-            <div className="py-24 text-center text-xs text-slate-400">
-              Initializing HengSeng Sentiment Intelligence Engine...
-            </div>
-          ) : (
-            <>
+          <>
               {activeTab === 'overview' && (
                 <OverviewView
                   assets={assets}
@@ -104,7 +102,6 @@ export function App() {
                   onNavigateTab={setActiveTab}
                 />
               )}
-
               {activeTab === 'exchange' && (
                 <ExchangeView
                   assets={assets}
@@ -113,7 +110,6 @@ export function App() {
                   onSelectAsset={setSelectedAsset}
                 />
               )}
-
               {activeTab === 'assets' && (
                 <AssetExplorerView
                   assets={assets}
@@ -122,11 +118,8 @@ export function App() {
                   onSelectAsset={setSelectedAsset}
                 />
               )}
-
               {activeTab === 'social' && <SocialSentimentView />}
-
               {activeTab === 'news' && <NewsIntelligenceView />}
-
               {activeTab === 'predictions' && (
                 <PredictionCenterView
                   assets={assets}
@@ -134,37 +127,53 @@ export function App() {
                   onRefreshPredictions={fetchAssets}
                 />
               )}
-
               {activeTab === 'performance' && <ModelPerformanceView />}
-
               {activeTab === 'backtesting' && <BacktestingView assets={assets} />}
-
               {activeTab === 'reports' && <ReportsView />}
-
               {activeTab === 'sources' && <DataSourcesView />}
-
               {activeTab === 'pipeline' && (
                 <PipelineMonitorView
                   isPipelineRunning={isPipelineRunning}
                   onTriggerPipeline={handleTriggerPipeline}
                 />
               )}
-
-              {activeTab === 'settings' && <SettingsView />}
+              {activeTab === 'settings' && <SettingsView user={user} />}
             </>
-          )}
+          )
         </main>
       </div>
 
-      {/* Asset Deep-Dive Modal Drawer */}
       {selectedAsset && (
-        <AssetDetailModal
-          asset={selectedAsset}
-          onClose={() => setSelectedAsset(null)}
-        />
+        <AssetDetailModal asset={selectedAsset} onClose={() => setSelectedAsset(null)} />
       )}
-      </div>
+    </div>
+  );
+}
+
+// Consumer of AuthContext — rendered inside AuthProvider so useAuth() is valid.
+export function AppContent() {
+  const { isLoading, isAuthenticated } = useAuth();
+  return (
+    <LanguageProvider>
+      {isLoading ? (
+        <div className="min-h-screen flex items-center justify-center bg-[#0b0f17] text-slate-400 text-sm">
+          Initializing HengSeng Sentiment Intelligence Engine…
+        </div>
+      ) : isAuthenticated ? (
+        <AppInner />
+      ) : (
+        <LoginView onLogin={() => {}} />
+      )}
     </LanguageProvider>
+  );
+}
+
+// Default export wraps everything in AuthProvider so useAuth() works throughout.
+export function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

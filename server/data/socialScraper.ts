@@ -1,6 +1,11 @@
 import { ExchangeCode, PositionSignal, SentimentDirection, SocialPost } from '../../src/types';
-import crypto from 'crypto';
 import POST_SEEDS from './socialPosts.json';
+import {
+  analyzeMultilingualSentiment,
+  computeEngagementScore,
+  createPostHash,
+} from './sentiment';
+import { appDb, uuidv4 } from '../db/sqlite';
 
 const APIFY_BASE_URL = 'https://api.apify.com/v2';
 
@@ -39,7 +44,6 @@ async function runApifyActor(actorId: string, token: string, input: Record<strin
     throw new Error('Apify actor run returned no runId or datasetId');
   }
 
-  // Poll for completion (up to ~60 seconds)
   let attempts = 0;
   let runData: any = null;
   while (attempts < 30) {
@@ -109,201 +113,114 @@ function normalizeApifyItem(item: any, platform: string, defaultExchange: Exchan
   };
 }
 
-// Multilingual financial lexicon with polarity weights (-100 to +100)
-interface LexiconEntry {
-  phrase: string;
-  weight: number;
-  position?: PositionSignal;
-  language: 'zh-HK' | 'zh-CN' | 'ko' | 'en';
-}
-
-const FINANCIAL_LEXICON: LexiconEntry[] = [
-  // Traditional Chinese / Hong Kong Cantonese financial slang
-  { phrase: '看好', weight: 65, position: 'Long', language: 'zh-HK' },
-  { phrase: '破頂', weight: 80, position: 'Long', language: 'zh-HK' },
-  { phrase: '大升', weight: 85, position: 'Long', language: 'zh-HK' },
-  { phrase: '突破', weight: 70, position: 'Long', language: 'zh-HK' },
-  { phrase: '買入', weight: 75, position: 'Long', language: 'zh-HK' },
-  { phrase: '逢低吸納', weight: 60, position: 'Accumulating', language: 'zh-HK' },
-  { phrase: '撈底', weight: 65, position: 'Accumulating', language: 'zh-HK' },
-  { phrase: '加倉', weight: 70, position: 'Accumulating', language: 'zh-HK' },
-  { phrase: '業績超預期', weight: 90, position: 'Long', language: 'zh-HK' },
-  { phrase: '好消息', weight: 55, language: 'zh-HK' },
-  { phrase: '看淡', weight: -65, position: 'Short', language: 'zh-HK' },
-  { phrase: '大跌', weight: -85, position: 'Short', language: 'zh-HK' },
-  { phrase: '破底', weight: -80, position: 'Short', language: 'zh-HK' },
-  { phrase: '割肉', weight: -75, position: 'Stop-loss', language: 'zh-HK' },
-  { phrase: '止蝕', weight: -60, position: 'Stop-loss', language: 'zh-HK' },
-  { phrase: '止賺', weight: 30, position: 'Taking Profit', language: 'zh-HK' },
-  { phrase: '沽空', weight: -85, position: 'Short', language: 'zh-HK' },
-  { phrase: '被套', weight: -50, position: 'Holding', language: 'zh-HK' },
-  { phrase: '高估', weight: -60, language: 'zh-HK' },
-  { phrase: '橫行', weight: 0, position: 'Neutral', language: 'zh-HK' },
-
-  // Korean financial terms & stock community jargon
-  { phrase: '풀매수', weight: 90, position: 'Long', language: 'ko' },
-  { phrase: '급등', weight: 85, position: 'Long', language: 'ko' },
-  { phrase: '상승장', weight: 75, position: 'Long', language: 'ko' },
-  { phrase: '신고가', weight: 85, position: 'Long', language: 'ko' },
-  { phrase: '외인매수', weight: 70, position: 'Accumulating', language: 'ko' },
-  { phrase: '실적호조', weight: 85, language: 'ko' },
-  { phrase: '저평가', weight: 60, position: 'Accumulating', language: 'ko' },
-  { phrase: '목표가 상향', weight: 75, language: 'ko' },
-  { phrase: '떡상', weight: 85, position: 'Long', language: 'ko' },
-  { phrase: '존버', weight: 15, position: 'Holding', language: 'ko' },
-  { phrase: '급락', weight: -85, position: 'Short', language: 'ko' },
-  { phrase: '폭락', weight: -90, position: 'Short', language: 'ko' },
-  { phrase: '신저가', weight: -85, position: 'Short', language: 'ko' },
-  { phrase: '손절', weight: -75, position: 'Stop-loss', language: 'ko' },
-  { phrase: '익절', weight: 35, position: 'Taking Profit', language: 'ko' },
-  { phrase: '개미털기', weight: -40, language: 'ko' },
-  { phrase: '실적쇼크', weight: -85, language: 'ko' },
-  { phrase: '공매도', weight: -70, position: 'Short', language: 'ko' },
-  { phrase: '물렸다', weight: -60, position: 'Holding', language: 'ko' },
-  { phrase: '떡락', weight: -85, position: 'Short', language: 'ko' },
-  { phrase: '관망', weight: 0, position: 'Neutral', language: 'ko' },
-
-  // English financial terms
-  { phrase: 'bullish', weight: 75, position: 'Long', language: 'en' },
-  { phrase: 'breakout', weight: 80, position: 'Long', language: 'en' },
-  { phrase: 'accumulate', weight: 65, position: 'Accumulating', language: 'en' },
-  { phrase: 'buy the dip', weight: 70, position: 'Accumulating', language: 'en' },
-  { phrase: 'earnings beat', weight: 85, language: 'en' },
-  { phrase: 'upgrade', weight: 70, language: 'en' },
-  { phrase: 'target price raise', weight: 75, language: 'en' },
-  { phrase: 'undervalued', weight: 60, position: 'Accumulating', language: 'en' },
-  { phrase: 'rally', weight: 65, position: 'Long', language: 'en' },
-  { phrase: 'bearish', weight: -75, position: 'Short', language: 'en' },
-  { phrase: 'sell-off', weight: -80, position: 'Short', language: 'en' },
-  { phrase: 'downgrade', weight: -75, language: 'en' },
-  { phrase: 'earnings miss', weight: -85, language: 'en' },
-  { phrase: 'overvalued', weight: -60, position: 'Short', language: 'en' },
-  { phrase: 'stop loss hit', weight: -70, position: 'Stop-loss', language: 'en' },
-  { phrase: 'taking profit', weight: 25, position: 'Taking Profit', language: 'en' },
-  { phrase: 'short squeeze', weight: 65, position: 'Long', language: 'en' },
-  { phrase: 'neutral outlook', weight: 0, position: 'Neutral', language: 'en' },
-];
-
-export function analyzeMultilingualSentiment(text: string): {
-  sentimentScore: number;
-  sentimentLabel: SentimentDirection;
-  confidence: number;
-  extractedPhrases: string[];
-  detectedLanguage: 'zh-HK' | 'zh-CN' | 'ko' | 'en';
-  expressedPosition?: PositionSignal;
-} {
-  // Simple heuristic language detection
-  const hasKorean = /[\uAC00-\uD7AF\u1100-\u11FF]/.test(text);
-  const hasChinese = /[\u4E00-\u9FFF]/.test(text);
-  const detectedLanguage = hasKorean ? 'ko' : hasChinese ? 'zh-HK' : 'en';
-
-  const lower = text.toLowerCase();
-  const matchedPhrases: string[] = [];
-  let scoreSum = 0;
-  let matchesCount = 0;
-  let detectedPos: PositionSignal | undefined;
-
-  for (const item of FINANCIAL_LEXICON) {
-    if (text.includes(item.phrase) || lower.includes(item.phrase.toLowerCase())) {
-      matchedPhrases.push(item.phrase);
-      scoreSum += item.weight;
-      matchesCount++;
-      if (item.position && !detectedPos) {
-        detectedPos = item.position;
-      }
-    }
-  }
-
-  let finalScore = 0;
-  let confidence = 0.5;
-
-  if (matchesCount > 0) {
-    finalScore = Math.max(-100, Math.min(100, Math.round(scoreSum / matchesCount)));
-    confidence = Math.min(0.95, 0.6 + matchesCount * 0.08);
-  } else {
-    // Basic fallback if no domain keywords matched
-    finalScore = 0;
-    confidence = 0.4;
-  }
-
-  let sentimentLabel: SentimentDirection = 'Neutral';
-  if (finalScore >= 60) sentimentLabel = 'Strong Bullish';
-  else if (finalScore >= 20) sentimentLabel = 'Bullish';
-  else if (finalScore <= -60) sentimentLabel = 'Strong Bearish';
-  else if (finalScore <= -20) sentimentLabel = 'Bearish';
-
-  return {
-    sentimentScore: finalScore,
-    sentimentLabel,
-    confidence: Number(confidence.toFixed(2)),
-    extractedPhrases: matchedPhrases,
-    detectedLanguage,
-    expressedPosition: detectedPos,
-  };
-}
-
-export function computeEngagementScore(likes: number, comments: number, shares: number, views: number): number {
-  // Transparent formula: log10(1 + likes*1.0 + comments*2.0 + shares*3.0 + views*0.05)
-  const raw = likes * 1.0 + comments * 2.0 + shares * 3.0 + views * 0.05;
-  const score = Math.log10(1 + raw);
-  return Number(score.toFixed(3));
-}
-
-// Generate deduplication hash
-export function createPostHash(platform: string, author: string, text: string): string {
-  return crypto.createHash('sha256').update(`${platform}_${author}_${text}`).digest('hex').substring(0, 16);
-}
+// ---------------------------------------------------------------------------
+// SQLite-backed social posts repository
+// ---------------------------------------------------------------------------
 
 export class SocialScraperRepository {
   private posts: SocialPost[] = [];
 
   constructor() {
-    this.ingestSeedPosts();
+    this.loadFromDb();
   }
 
-  public ingestSeedPosts() {
+  private loadFromDb() {
     this.posts = [];
+    const db = appDb.db;
+    const count = appDb.selectOne<{ c: number }>('SELECT COUNT(*) AS c FROM social_posts')!.c;
+    if (count === 0) {
+      this.seedFromJson();
+      return;
+    }
+    const rows = db.prepare('SELECT * FROM social_posts ORDER BY published_at DESC').all() as any[];
+    for (const r of rows) {
+      this.posts.push(this.rowToPost(r));
+    }
+  }
+
+  private seedFromJson() {
+    const db = appDb.db;
     const now = new Date();
-
-    for (const seed of POST_SEEDS) {
-      const pubDate = new Date(now.getTime() - seed.daysAgo * 24 * 60 * 60 * 1000);
-      const sentiment = analyzeMultilingualSentiment(seed.text);
-      const engagement = computeEngagementScore(seed.likes, seed.comments, seed.shares, seed.views);
-      const hash = createPostHash(seed.platform, seed.author, seed.text);
-
-      const post: SocialPost = {
-        id: `post_${hash}`,
-        exchange: seed.exchange as ExchangeCode,
-        ticker: seed.ticker,
-        assetName: seed.assetName,
-        platform: seed.platform as 'LIHKG' | 'Telegram' | 'Naver Finance' | 'Daum Finance' | 'Futu/Moomoo',
-        url: seed.platform === 'LIHKG'
+    const tx = db.transaction(() => {
+      const insertPost = db.prepare(`
+        INSERT OR IGNORE INTO social_posts (
+          id,exchange,ticker,asset_name,platform,url,author,author_followers,author_influence_score,
+          text,text_en,original_language,published_at,collected_at,likes,comments,shares,views,
+          engagement_score,sentiment_score,sentiment_label,confidence,extracted_phrases,expressed_position
+        ) VALUES (
+          @id,@exchange,@ticker,@assetName,@platform,@url,@author,@authorFollowers,@authorInfluenceScore,
+          @text,@textEn,@originalLanguage,@publishedAt,@collectedAt,@likes,@comments,@shares,@views,
+          @engagementScore,@sentimentScore,@sentimentLabel,@confidence,@extractedPhrases,@expressedPosition
+        );
+      `);
+      for (const seed of POST_SEEDS) {
+        const pubDate = new Date(now.getTime() - seed.daysAgo * 24 * 60 * 60 * 1000);
+        const sentiment = analyzeMultilingualSentiment(seed.text);
+        const engagement = computeEngagementScore(seed.likes, seed.comments, seed.shares, seed.views);
+        const hash = createPostHash(seed.platform, seed.author, seed.text);
+        const id = `post_${hash}`;
+        const platform = seed.platform as 'LIHKG' | 'Telegram' | 'Naver Finance' | 'Daum Finance' | 'Futu/Moomoo';
+        let url = seed.platform === 'LIHKG'
           ? `https://lihkg.com/thread/381${Math.floor(Math.random() * 9000 + 1000)}`
           : seed.platform === 'Naver Finance'
           ? `https://finance.naver.com/item/board_read.naver?code=${seed.ticker.split('.')[0]}&nid=${Math.floor(Math.random() * 900000 + 100000)}`
-          : `https://t.me/hkstocknews/${Math.floor(Math.random() * 5000 + 100)}`,
-        author: seed.author,
-        authorFollowers: seed.followers,
-        authorInfluenceScore: Number(Math.min(1.0, 0.3 + (seed.followers / 25000) * 0.7).toFixed(2)),
-        text: seed.text,
-        textEn: seed.textEn || undefined,
-        originalLanguage: sentiment.detectedLanguage,
-        publishedAt: pubDate.toISOString(),
-        collectedAt: new Date().toISOString(),
-        likes: seed.likes,
-        comments: seed.comments,
-        shares: seed.shares,
-        views: seed.views,
-        engagementScore: engagement,
-        sentimentScore: sentiment.sentimentScore,
-        sentimentLabel: sentiment.sentimentLabel,
-        confidence: sentiment.confidence,
-        extractedPhrases: sentiment.extractedPhrases,
-        expressedPosition: sentiment.expressedPosition,
-      };
+          : `https://t.me/hkstocknews/${Math.floor(Math.random() * 5000 + 100)}`;
+        const post: SocialPost = {
+          id, exchange: seed.exchange as ExchangeCode, ticker: seed.ticker, assetName: seed.assetName, platform, url,
+          author: seed.author, authorFollowers: seed.followers,
+          authorInfluenceScore: Number(Math.min(1.0, 0.3 + (seed.followers / 25000) * 0.7).toFixed(2)),
+          text: seed.text, textEn: seed.textEn ?? undefined, originalLanguage: sentiment.detectedLanguage,
+          publishedAt: pubDate.toISOString(), collectedAt: new Date().toISOString(),
+          likes: seed.likes, comments: seed.comments, shares: seed.shares, views: seed.views,
+          engagementScore: engagement, sentimentScore: sentiment.sentimentScore,
+          sentimentLabel: sentiment.sentimentLabel, confidence: sentiment.confidence,
+          extractedPhrases: sentiment.extractedPhrases, expressedPosition: sentiment.expressedPosition,
+        };
+        this.posts.push(post);
+        insertPost.run({
+          id, exchange: seed.exchange, ticker: seed.ticker, assetName: seed.assetName, platform, url,
+          author: seed.author, authorFollowers: seed.followers,
+          authorInfluenceScore: post.authorInfluenceScore,
+          text: seed.text, textEn: seed.textEn ?? null, originalLanguage: sentiment.detectedLanguage,
+          publishedAt: pubDate.toISOString(), collectedAt: new Date().toISOString(),
+          likes: seed.likes, comments: seed.comments, shares: seed.shares, views: seed.views,
+          engagementScore: engagement, sentimentScore: sentiment.sentimentScore,
+          sentimentLabel: sentiment.sentimentLabel, confidence: sentiment.confidence,
+          extractedPhrases: JSON.stringify(sentiment.extractedPhrases),
+          expressedPosition: sentiment.expressedPosition ?? null,
+        });
+      }
+    });
+    tx();
+  }
 
-      this.posts.push(post);
-    }
+  private rowToPost(r: any): SocialPost {
+    return {
+      id: r.id,
+      exchange: r.exchange as ExchangeCode,
+      ticker: r.ticker,
+      assetName: r.asset_name,
+      platform: r.platform as 'LIHKG' | 'Telegram' | 'Naver Finance' | 'Daum Finance' | 'Futu/Moomoo',
+      url: r.url,
+      author: r.author,
+      authorFollowers: r.author_followers,
+      authorInfluenceScore: r.author_influence_score,
+      text: r.text,
+      textEn: r.text_en ?? undefined,
+      originalLanguage: r.original_language as 'zh-HK' | 'zh-CN' | 'ko' | 'en',
+      publishedAt: r.published_at,
+      collectedAt: r.collected_at,
+      likes: r.likes,
+      comments: r.comments,
+      shares: r.shares,
+      views: r.views,
+      engagementScore: r.engagement_score,
+      sentimentScore: r.sentiment_score,
+      sentimentLabel: r.sentiment_label as SentimentDirection,
+      confidence: r.confidence,
+      extractedPhrases: JSON.parse(r.extracted_phrases || '[]'),
+      expressedPosition: r.expressed_position as PositionSignal | undefined,
+    };
   }
 
   public async ingestApifyPosts(): Promise<{ posted: number; errors: string[]; live: boolean }> {
@@ -374,6 +291,28 @@ export class SocialScraperRepository {
     const exists = this.posts.some(p => p.id === post.id);
     if (!exists) {
       this.posts.unshift(post);
+      const db = appDb.db;
+      db.prepare(`
+        INSERT OR IGNORE INTO social_posts (
+          id,exchange,ticker,asset_name,platform,url,author,author_followers,author_influence_score,
+          text,text_en,original_language,published_at,collected_at,likes,comments,shares,views,
+          engagement_score,sentiment_score,sentiment_label,confidence,extracted_phrases,expressed_position
+        ) VALUES (
+          @id,@exchange,@ticker,@assetName,@platform,@url,@author,@authorFollowers,@authorInfluenceScore,
+          @text,@textEn,@originalLanguage,@publishedAt,@collectedAt,@likes,@comments,@shares,@views,
+          @engagementScore,@sentimentScore,@sentimentLabel,@confidence,@extractedPhrases,@expressedPosition
+        );
+      `).run({
+        id: post.id, exchange: post.exchange, ticker: post.ticker, assetName: post.assetName, platform: post.platform,
+        url: post.url, author: post.author, authorFollowers: post.authorFollowers,
+        authorInfluenceScore: post.authorInfluenceScore, text: post.text, textEn: post.textEn ?? null,
+        originalLanguage: post.originalLanguage, publishedAt: post.publishedAt, collectedAt: post.collectedAt,
+        likes: post.likes, comments: post.comments, shares: post.shares, views: post.views,
+        engagementScore: post.engagementScore, sentimentScore: post.sentimentScore,
+        sentimentLabel: post.sentimentLabel, confidence: post.confidence,
+        extractedPhrases: JSON.stringify(post.extractedPhrases),
+        expressedPosition: post.expressedPosition ?? null,
+      });
       return true;
     }
     return false;

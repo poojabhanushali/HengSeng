@@ -75,7 +75,7 @@ export const BacktestingView: React.FC<BacktestingViewProps> = ({ assets }) => {
         >
           {assets.map(a => (
             <option key={a.ticker} value={a.ticker}>
-              {a.ticker} — {a.name} ({a.exchange})
+              {a.ticker} - {a.name} ({a.exchange})
             </option>
           ))}
         </select>
@@ -94,7 +94,7 @@ export const BacktestingView: React.FC<BacktestingViewProps> = ({ assets }) => {
         <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
           <div className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">Directional Hit Rate</div>
           <div className="text-2xl font-bold font-mono text-emerald-500 mt-1 tabular-nums">
-            {directionalRate !== null ? `${directionalRate}%` : '—'}
+            {directionalRate !== null ? `${directionalRate}%` : '-'}
           </div>
           <div className="text-[11px] text-slate-400 mt-1">
             {directionalRate !== null ? `${summary?.hitCount ?? matchCount} of ${summary?.folds ?? totalFolds} session trends correctly called` : 'Awaiting evaluation data'}
@@ -108,10 +108,10 @@ export const BacktestingView: React.FC<BacktestingViewProps> = ({ assets }) => {
               ? selectedAsset?.currency === 'KRW'
                 ? `₩${avgError.toLocaleString()}`
                 : `HK$${avgError}`
-              : '—'}
+              : '-'}
           </div>
           <div className="text-[11px] text-slate-400 mt-1">
-            {avgError !== null ? `Avg forecast distance in ${selectedAsset?.currency || ''} · MAPE ${summary?.mapePercent ?? '—'}%` : 'Awaiting evaluation data'}
+            {avgError !== null ? `Avg forecast distance in ${selectedAsset?.currency || ''} · MAPE ${summary?.mapePercent ?? '-'}%` : 'Awaiting evaluation data'}
           </div>
         </div>
 
@@ -122,7 +122,7 @@ export const BacktestingView: React.FC<BacktestingViewProps> = ({ assets }) => {
               baselineImprovement === null ? 'text-slate-400' : baselineImprovement >= 0 ? 'text-emerald-500' : 'text-red-500'
             }`}
           >
-            {baselineImprovement !== null ? `${baselineImprovement >= 0 ? '+' : ''}${baselineImprovement}%` : '—'}
+            {baselineImprovement !== null ? `${baselineImprovement >= 0 ? '+' : ''}${baselineImprovement}%` : '-'}
           </div>
           <div className="text-[11px] text-slate-400 mt-1">
             {summary?.persistenceMae != null

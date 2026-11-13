@@ -344,7 +344,7 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({ asset, onClo
                         95% Prediction Interval (±1.96 × OOS RMSE)
                       </div>
                       <div className="font-mono text-sm text-slate-700 dark:text-slate-300">
-                        Range: [{prediction.confidenceInterval.lower95} — {prediction.confidenceInterval.upper95}]
+                        Range: [{prediction.confidenceInterval.lower95} - {prediction.confidenceInterval.upper95}]
                       </div>
                       <div className="grid grid-cols-2 gap-2 mt-4 text-xs font-mono">
                         <div className="p-2 rounded bg-slate-100 dark:bg-slate-800">
@@ -578,14 +578,14 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({ asset, onClo
                           className="font-semibold text-slate-900 dark:text-white"
                         />
                       </div>
-                      <p className="text-slate-600 dark:text-slate-400">
+                      <div className="text-slate-600 dark:text-slate-400">
                         <TranslatedText
                           original={art.summary}
                           translation={art.summaryEn}
                           originalLang="en"
                           className="text-slate-600 dark:text-slate-400"
                         />
-                      </p>
+                      </div>
                     </div>
                   ))}
                 </div>

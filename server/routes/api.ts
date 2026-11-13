@@ -1,10 +1,13 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { marketRepo } from '../data/marketData';
 import { socialRepo } from '../data/socialScraper';
 import { newsRepo } from '../data/newsEngine';
 import { mlEngine } from '../ml/predictiveEngine';
 import { orchestrator } from '../agents/orchestrator';
-import { ExchangeCode, SystemSettings, ExecutiveReport } from '../../src/types';
+import { appDb, uuidv4 } from '../db/sqlite';
+import { ExchangeCode, SystemSettings, ExecutiveReport, User, UserRole } from '../../src/types';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
 export const apiRouter = Router();
 
@@ -27,6 +30,71 @@ let currentSettings: SystemSettings = {
 };
 
 const VALID_EXCHANGES: ExchangeCode[] = ['HKEX', 'KRX'];
+
+const JWT_SECRET = process.env.SECRET_KEY || 'hengseng-dev-secret-change-in-production';
+const JWT_EXPIRES_IN = '8h';
+
+interface AuthRequest extends Request {
+  user?: User;
+}
+
+// ---- Authentication helpers ----
+function generateToken(user: User): string {
+  return jwt.sign(
+    { sub: user.id, username: user.username, role: user.role },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN, issuer: 'hengseng' }
+  );
+}
+
+function authenticate(req: AuthRequest, res: Response, next: NextFunction): void | Response {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Authentication required', detail: 'Missing or invalid Authorization header' });
+  }
+  const token = header.slice(7);
+  try {
+    const payload = jwt.verify(token, JWT_SECRET, { issuer: 'hengseng' }) as { sub: string; role: string };
+    const row = appDb.db.prepare('SELECT id,username,email,role,is_active,created_at FROM users WHERE id = ?').get(payload.sub) as any;
+    if (!row || !row.is_active) {
+      return res.status(401).json({ error: 'Authentication required', detail: 'User not found or inactive' });
+    }
+    req.user = {
+      id: row.id,
+      username: row.username,
+      email: row.email,
+      role: row.role as UserRole,
+      isActive: Boolean(row.is_active),
+      createdAt: row.created_at,
+    };
+    next();
+  } catch {
+    return res.status(401).json({ error: 'Authentication required', detail: 'Token expired or invalid' });
+  }
+}
+
+function requireAuth(req: AuthRequest, res: Response, next: NextFunction): void | Response {
+  return authenticate(req, res, next);
+}
+
+function requireRole(...roles: UserRole[]) {
+  return (req: AuthRequest, res: Response, next: NextFunction): void | Response => {
+    const handled = authenticate(req, res, () => {});
+    if (handled) return handled;
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Forbidden', detail: `Insufficient role. Required: ${roles.join(', ')}` });
+    }
+    next();
+  };
+}
+
+function auditLog(actorId: string | undefined, action: string, entity: string, entityId: string | undefined, meta: any) {
+  try {
+    appDb.db.prepare(
+      'INSERT INTO audit_logs (actor_id,action,entity,entity_id,meta,created_at) VALUES (?,?,?,?,?,?)'
+    ).run(actorId ?? null, action, entity, entityId ?? null, JSON.stringify(meta ?? {}), new Date().toISOString());
+  } catch { /* best-effort audit logging */ }
+}
 
 // Build an executive report from live repository + engine state (no hardcoded metrics).
 function buildExecutiveReport(exchange: ExchangeCode | 'ALL'): ExecutiveReport {
@@ -96,7 +164,7 @@ function buildExecutiveReport(exchange: ExchangeCode | 'ALL'): ExecutiveReport {
     `Small sample: ${filtered.length} assets × 5 walk-forward folds = ${sampleTotal} out-of-sample observations; results are unstable and not suitable for live capital allocation.`,
     'OHLCV market data is deterministic seeded (local fallback), not a live vendor feed.',
     'Social and news data are curated local fallback datasets; no live Apify or Exa integration is active without credentials.',
-    'All models show negative out-of-sample R² on this sample — none beats a simple mean forecast.',
+    'All models show negative out-of-sample R² on this sample - none beats a simple mean forecast.',
     'The deployed ensemble is labeled "production" because it is deployed, not because it outperforms every baseline on every metric.',
   ];
 
@@ -143,6 +211,87 @@ apiRouter.get('/health', (req: Request, res: Response) => {
     agentsCount: 8,
     monitoredAssets: marketRepo.getAllAssets().length,
   });
+});
+
+// ---- Authentication routes ----
+apiRouter.post('/auth/register', async (req: Request, res: Response) => {
+  const { username, email, password, role } = (req.body || {}) as {
+    username?: string; email?: string; password?: string; role?: UserRole;
+  };
+  if (!username || !email || !password) {
+    return res.status(400).json({ error: 'Missing required fields', detail: 'username, email and password are required' });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Invalid password', detail: 'Password must be at least 6 characters' });
+  }
+  const existing = appDb.db.prepare('SELECT id FROM users WHERE username = ? OR email = ?').get(username, email);
+  if (existing) {
+    return res.status(409).json({ error: 'Conflict', detail: 'Username or email already registered' });
+  }
+  const roleValue = role && ['admin', 'manager', 'viewer'].includes(role) ? role : 'viewer';
+  const id = uuidv4();
+  const passwordHash = await bcrypt.hash(password, 10);
+  appDb.db.prepare(
+    'INSERT INTO users (id,username,email,password_hash,role,is_active,created_at) VALUES (?,?,?,?,?,?,?)'
+  ).run(id, username, email, passwordHash, roleValue, 1, new Date().toISOString());
+  const row = appDb.db.prepare('SELECT id,username,email,role,is_active,created_at FROM users WHERE id = ?').get(id) as any;
+  const user: User = {
+    id: row.id, username: row.username, email: row.email, role: row.role as UserRole,
+    isActive: Boolean(row.is_active), createdAt: row.created_at,
+  };
+  auditLog(id, 'user.register', 'users', id, { username, email, role: roleValue });
+  return res.status(201).json({ status: 'success', message: 'User registered', user, accessToken: generateToken(user) });
+});
+
+apiRouter.post('/auth/login', async (req: Request, res: Response) => {
+  const { username, password } = (req.body || {}) as { username?: string; password?: string };
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Missing credentials', detail: 'username and password are required' });
+  }
+  const row = appDb.db.prepare('SELECT * FROM users WHERE username = ?').get(username) as any;
+  if (!row) {
+    return res.status(401).json({ error: 'Invalid credentials', detail: 'Username or password is incorrect' });
+  }
+  const valid = await bcrypt.compare(password, row.password_hash);
+  if (!valid) {
+    return res.status(401).json({ error: 'Invalid credentials', detail: 'Username or password is incorrect' });
+  }
+  if (!row.is_active) {
+    return res.status(401).json({ error: 'Account disabled', detail: 'This account has been deactivated' });
+  }
+  const user: User = {
+    id: row.id, username: row.username, email: row.email, role: row.role as UserRole,
+    isActive: Boolean(row.is_active), createdAt: row.created_at,
+  };
+  auditLog(user.id, 'user.login', 'users', user.id, {});
+  return res.json({ status: 'success', message: 'Signed in', user, accessToken: generateToken(user) });
+});
+
+apiRouter.get('/auth/me', requireAuth, (req: AuthRequest, res: Response) => {
+  return res.json({ status: 'success', user: req.user });
+});
+
+apiRouter.get('/auth/users', requireRole('admin'), (req: AuthRequest, res: Response) => {
+  const rows = appDb.db.prepare('SELECT id,username,email,role,is_active,created_at FROM users ORDER BY created_at DESC').all() as any[];
+  const users: User[] = rows.map(r => ({
+    id: r.id, username: r.username, email: r.email, role: r.role as UserRole,
+    isActive: Boolean(r.is_active), createdAt: r.created_at,
+  }));
+  return res.json({ status: 'success', users });
+});
+
+apiRouter.patch('/auth/users/:id/role', requireRole('admin'), (req: AuthRequest, res: Response) => {
+  const { role } = (req.body || {}) as { role?: UserRole };
+  if (!role || !['admin', 'manager', 'viewer'].includes(role)) {
+    return res.status(400).json({ error: 'Invalid role', detail: 'role must be admin, manager or viewer' });
+  }
+  const target = appDb.db.prepare('SELECT id,username,role FROM users WHERE id = ?').get(req.params.id) as any;
+  if (!target) {
+    return res.status(404).json({ error: 'Not found', detail: 'User not found' });
+  }
+  appDb.db.prepare('UPDATE users SET role = ? WHERE id = ?').run(role, req.params.id);
+  auditLog(req.user?.id, 'user.update_role', 'users', req.params.id, { target: target.username, newRole: role });
+  return res.json({ status: 'success', message: 'Role updated', userId: req.params.id, role });
 });
 
 // Assets Endpoints
@@ -443,7 +592,7 @@ apiRouter.get('/predictions', (req: Request, res: Response) => {
   });
 });
 
-apiRouter.post('/predictions/run', (req: Request, res: Response) => {
+apiRouter.post('/predictions/run', requireRole('admin', 'manager'), (req: Request, res: Response) => {
   orchestrator.syncAssetIntelligence();
   res.json({
     status: 'success',
@@ -517,7 +666,7 @@ apiRouter.get('/predictions/performance', (req: Request, res: Response) => {
       : null,
     averageDirectionalAccuracy: Number(avg(allModels[name].dirAcc).toFixed(1)),
     averageR2: Number(avg(allModels[name].r2).toFixed(3)),
-    // Currency-normalized error (%) — valid to compare across HKD and KRW assets
+    // Currency-normalized error (%) - valid to compare across HKD and KRW assets
     averageMapePercent: Number(avg(allModels[name].mape).toFixed(2)),
     assetCount: allModels[name].mae.length,
     totalOutOfSampleSamples: allModels[name].samples.reduce((s, v) => s + v, 0),
@@ -552,7 +701,7 @@ apiRouter.get('/predictions/performance', (req: Request, res: Response) => {
       assetsEvaluated: assets.length,
       foldsPerAsset,
       totalOutOfSampleObservations: totalOutOfSample,
-      normalizedMetric: 'MAPE (%) — recommended for cross-exchange comparison',
+      normalizedMetric: 'MAPE (%) - recommended for cross-exchange comparison',
       currencyNote: 'HKEX errors in HKD, KRX errors in KRW; raw MAE is never pooled across currencies in exchangeMetrics',
     },
   });
@@ -589,7 +738,7 @@ apiRouter.get('/predictions/backtesting', (req: Request, res: Response) => {
 });
 
 // Ingestion & Agent Endpoints
-apiRouter.post('/ingestion/run', async (req: Request, res: Response) => {
+apiRouter.post('/ingestion/run', requireRole('admin'), async (req: Request, res: Response) => {
   try {
     const result = await orchestrator.runFullPipeline();
     res.json(result);
@@ -611,7 +760,7 @@ apiRouter.get('/ingestion/history', (req: Request, res: Response) => {
   });
 });
 
-apiRouter.post('/agents/run', async (req: Request, res: Response) => {
+apiRouter.post('/agents/run', requireRole('admin'), async (req: Request, res: Response) => {
   try {
     const result = await orchestrator.runFullPipeline();
     res.json(result);
@@ -642,7 +791,7 @@ apiRouter.get('/reports', (req: Request, res: Response) => {
   });
 });
 
-apiRouter.post('/reports/generate', (req: Request, res: Response) => {
+apiRouter.post('/reports/generate', requireRole('admin', 'manager'), (req: Request, res: Response) => {
   const exchange = (req.body?.exchange as ExchangeCode | 'ALL') || 'ALL';
   if (exchange !== 'ALL' && !VALID_EXCHANGES.includes(exchange)) {
     return res.status(400).json({ error: `Invalid exchange '${exchange}'. Expected one of: ALL, HKEX, KRX` });
@@ -689,7 +838,7 @@ apiRouter.get('/settings', (req: Request, res: Response) => {
   res.json(masked);
 });
 
-apiRouter.put('/settings', (req: Request, res: Response) => {
+apiRouter.put('/settings', requireRole('admin', 'manager'), (req: AuthRequest, res: Response) => {
   const body = (req.body || {}) as Partial<SystemSettings>;
   if (body.apifyApiToken && !body.apifyApiToken.includes('••••')) {
     currentSettings.apifyApiToken = body.apifyApiToken;
@@ -705,6 +854,27 @@ apiRouter.put('/settings', (req: Request, res: Response) => {
   if (body.bearishThreshold !== undefined) currentSettings.bearishThreshold = body.bearishThreshold;
   if (body.marketDataProvider) currentSettings.marketDataProvider = body.marketDataProvider;
   if (body.languagePrefs) currentSettings.languagePrefs = body.languagePrefs;
+
+  // Persist settings to SQLite
+  const now = new Date().toISOString();
+  const persistSetting = (key: string, value: unknown) => {
+    appDb.db.prepare(
+      'INSERT INTO settings (key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at'
+    ).run(key, JSON.stringify(value), now);
+  };
+  persistSetting('apifyApiToken', currentSettings.apifyApiToken);
+  persistSetting('exaApiKey', currentSettings.exaApiKey ? 'SET' : '');
+  persistSetting('marketDataApiKey', currentSettings.marketDataApiKey ? 'SET' : '');
+  persistSetting('bullishThreshold', currentSettings.bullishThreshold);
+  persistSetting('bearishThreshold', currentSettings.bearishThreshold);
+  persistSetting('marketDataProvider', currentSettings.marketDataProvider);
+  persistSetting('predictionHorizonDays', currentSettings.predictionHorizonDays);
+  persistSetting('dataRetentionDays', currentSettings.dataRetentionDays);
+  persistSetting('enableAutomatedOrchestration', currentSettings.enableAutomatedOrchestration);
+  persistSetting('orchestrationIntervalHours', currentSettings.orchestrationIntervalHours);
+  if (body.languagePrefs) persistSetting('languagePrefs', currentSettings.languagePrefs);
+
+  auditLog(req.user?.id, 'settings.update', 'settings', '*', body);
 
   res.json({
     status: 'success',
@@ -777,8 +947,8 @@ apiRouter.get('/sources/status', (req: Request, res: Response) => {
         credentialConfigured: Boolean(currentSettings.apifyApiToken),
         liveIntegrationAvailable: true,
         detail: socialRepo.getApifyStatus().configured
-          ? `Apify API token configured — live actor runs execute on pipeline execution. Social records currently served: ${posts.length} posts.`
-          : 'Apify actor runner is wired but no APIFY_API_TOKEN configured — serving the curated local fallback dataset. Add APIFY_API_TOKEN and Actor IDs to .env for live scraping.',
+          ? `Apify API token configured - live actor runs execute on pipeline execution. Social records currently served: ${posts.length} posts.`
+          : 'Apify actor runner is wired but no APIFY_API_TOKEN configured - serving the curated local fallback dataset. Add APIFY_API_TOKEN and Actor IDs to .env for live scraping.',
         lastUpdated: newestPost,
         ageMinutes: minutesSince(newestPost),
         recordCount: posts.length,
@@ -792,8 +962,8 @@ apiRouter.get('/sources/status', (req: Request, res: Response) => {
         credentialConfigured: exaStats.credentialConfigured,
         liveIntegrationAvailable: true,
         detail: exaStats.credentialConfigured
-          ? `EXA_API_KEY configured — live search runs on pipeline execution. Live articles currently served: ${exaStats.liveArticleCount}.`
-          : 'EXA_API_KEY not configured — serving the curated local fallback news dataset. No live Exa calls are made.',
+          ? `EXA_API_KEY configured - live search runs on pipeline execution. Live articles currently served: ${exaStats.liveArticleCount}.`
+          : 'EXA_API_KEY not configured - serving the curated local fallback news dataset. No live Exa calls are made.',
         lastLiveSearchAt: exaStats.lastLiveSearchAt,
         lastUpdated: newestArticle,
         ageMinutes: minutesSince(newestArticle),
@@ -809,7 +979,7 @@ apiRouter.get('/sources/status', (req: Request, res: Response) => {
         credentialConfigured: Boolean(currentSettings.marketDataApiKey),
         liveIntegrationAvailable: false,
         detail:
-          'OHLCV bars are produced by a deterministic seeded generator (per-ticker seed, weekends skipped) — they are not a live Yahoo/vendor quote feed.',
+          'OHLCV bars are produced by a deterministic seeded generator (per-ticker seed, weekends skipped) - they are not a live Yahoo/vendor quote feed.',
         provider: currentSettings.marketDataProvider,
         lastUpdated: newestBar,
         ageMinutes: minutesSince(newestBar),

@@ -15,7 +15,7 @@ export class MultiAgentOrchestrator {
       durationMs: 0,
       itemsProcessed: 0,
       qualityScore: 0,
-      message: 'Idle — awaiting pipeline execution.',
+      message: 'Idle - awaiting pipeline execution.',
     },
     {
       agentNumber: 2,
@@ -26,7 +26,7 @@ export class MultiAgentOrchestrator {
       durationMs: 0,
       itemsProcessed: 0,
       qualityScore: 0,
-      message: 'Idle — awaiting pipeline execution.',
+      message: 'Idle - awaiting pipeline execution.',
     },
     {
       agentNumber: 3,
@@ -37,7 +37,7 @@ export class MultiAgentOrchestrator {
       durationMs: 0,
       itemsProcessed: 0,
       qualityScore: 0,
-      message: 'Idle — awaiting pipeline execution.',
+      message: 'Idle - awaiting pipeline execution.',
     },
     {
       agentNumber: 4,
@@ -48,7 +48,7 @@ export class MultiAgentOrchestrator {
       durationMs: 0,
       itemsProcessed: 0,
       qualityScore: 0,
-      message: 'Idle — awaiting pipeline execution.',
+      message: 'Idle - awaiting pipeline execution.',
     },
     {
       agentNumber: 5,
@@ -59,7 +59,7 @@ export class MultiAgentOrchestrator {
       durationMs: 0,
       itemsProcessed: 0,
       qualityScore: 0,
-      message: 'Idle — awaiting pipeline execution.',
+      message: 'Idle - awaiting pipeline execution.',
     },
     {
       agentNumber: 6,
@@ -70,7 +70,7 @@ export class MultiAgentOrchestrator {
       durationMs: 0,
       itemsProcessed: 0,
       qualityScore: 0,
-      message: 'Idle — awaiting pipeline execution.',
+      message: 'Idle - awaiting pipeline execution.',
     },
     {
       agentNumber: 7,
@@ -81,7 +81,7 @@ export class MultiAgentOrchestrator {
       durationMs: 0,
       itemsProcessed: 0,
       qualityScore: 0,
-      message: 'Idle — awaiting pipeline execution.',
+      message: 'Idle - awaiting pipeline execution.',
     },
     {
       agentNumber: 8,
@@ -92,7 +92,7 @@ export class MultiAgentOrchestrator {
       durationMs: 0,
       itemsProcessed: 0,
       qualityScore: 0,
-      message: 'Idle — awaiting pipeline execution.',
+      message: 'Idle - awaiting pipeline execution.',
     },
   ];
 
@@ -265,8 +265,8 @@ export class MultiAgentOrchestrator {
         : `Curated local dataset: ${q.posts.length} posts across ${q.platformCount} platform feeds; Apify token not configured.`);
     set(3, q.news.length, q.newsCoverage,
       newsRepo.getApiKey()
-        ? `EXA_API_KEY detected — live search available; ${q.news.length} curated articles loaded.`
-        : `EXA_API_KEY not configured — ${q.news.length} curated fallback articles loaded (not live).`);
+        ? `EXA_API_KEY detected - live search available; ${q.news.length} curated articles loaded.`
+        : `EXA_API_KEY not configured - ${q.news.length} curated fallback articles loaded (not live).`);
     set(4, q.posts.length + q.news.length, q.sentimentValidity,
       `Scored ${q.posts.length} posts and ${q.news.length} articles; sentiment validity ${q.sentimentValidity}%.`);
     set(5, q.assets.length, q.technicalCompleteness,
@@ -345,7 +345,7 @@ export class MultiAgentOrchestrator {
         apifyResult.live ? 'completed' : 'completed',
         apifyResult.live
           ? `LIVE Apify: ${apifyResult.posted} posts from ${q.platformCount} platform feeds.${apifyResult.errors.length > 0 ? ` ${apifyResult.errors.length} actor error(s).` : ''}`
-          : `Apify not configured — ${q.posts.length} curated posts across ${q.platformCount} platform feeds (local fallback).`,
+          : `Apify not configured - ${q.posts.length} curated posts across ${q.platformCount} platform feeds (local fallback).`,
         q.posts.length,
         q.socialCoverage,
         Date.now() - t2
@@ -381,7 +381,7 @@ export class MultiAgentOrchestrator {
         'completed',
         newsRepo.getApiKey()
           ? `Exa API queried live for ${q.assets.length} assets (${liveExaArticles} new live articles merged with curated fallback).`
-          : `EXA_API_KEY not configured — ${q.news.length} curated fallback articles served (not live).`,
+          : `EXA_API_KEY not configured - ${q.news.length} curated fallback articles served (not live).`,
         q.news.length,
         q.newsCoverage,
         Date.now() - t3
@@ -459,7 +459,7 @@ export class MultiAgentOrchestrator {
           this.integrityScore(),
           Date.now() - t8
         );
-        errors.push(...failedChecks.map(c => `QC: ${c.name} — ${c.detail}`));
+        errors.push(...failedChecks.map(c => `QC: ${c.name} - ${c.detail}`));
       } else {
         this.updateAgentStatus(
           8,

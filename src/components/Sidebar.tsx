@@ -1,4 +1,5 @@
 import React from 'react';
+import { User } from '../types';
 import {
   LayoutDashboard,
   Globe2,
@@ -75,9 +76,10 @@ interface SidebarProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
   collapsed: boolean;
+  user: User | null;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, collapsed }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, collapsed, user }) => {
   const sidebarWidth = collapsed ? 16 : 256;
 
   return (

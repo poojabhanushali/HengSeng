@@ -60,10 +60,12 @@ async function get(path) {
   };
 }
 
-async function post(path, payload) {
+async function post(path, payload, token) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(BASE + path, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: typeof payload === 'string' ? payload : JSON.stringify(payload),
   });
   const text = await res.text();
@@ -82,6 +84,21 @@ async function post(path, payload) {
 
 async function main() {
   console.log('--- ERROR HANDLING & FALLBACK TRUTHFULNESS AUDIT ---');
+
+  // Authenticate as admin for protected mutation routes
+  let adminToken = null;
+  try {
+    const loginRes = await fetch(BASE + '/api/v1/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'admin', password: 'admin123' }),
+    });
+    if (loginRes.ok) {
+      const loginData = await loginRes.json();
+      adminToken = loginData.accessToken;
+      console.log(`[INFO] Admin authenticated: ${!!adminToken}`);
+    }
+  } catch { /* auth may not be available */ }
 
   // Unknown ticker -> JSON 404
   await check(() => get('/api/v1/assets/9999.ZZ'), 'unknown ticker /assets/9999.ZZ -> 404', 404, b =>
@@ -112,11 +129,11 @@ async function main() {
     typeof b === 'object' && b.error ? true : 'missing error field');
 
   // Malformed JSON body on POST -> 4xx JSON, no crash
-  await check(() => post('/api/v1/agents/run', '{not json'), 'malformed JSON body -> 4xx JSON', 400, b =>
+  await check(() => post('/api/v1/agents/run', '{not json', adminToken), 'malformed JSON body -> 4xx JSON', 400, b =>
     typeof b === 'object' && (b.error || b.message) ? true : 'missing error/message field');
 
   // Invalid exchange on report generation -> 4xx JSON
-  await check(() => post('/api/v1/reports/generate', { exchange: 'NYSE' }), 'invalid exchange on report generate -> 400', 400, b =>
+  await check(() => post('/api/v1/reports/generate', { exchange: 'NYSE' }, adminToken), 'invalid exchange on report generate -> 400', 400, b =>
     typeof b === 'object' && (b.error || b.message) ? true : 'missing error/message field');
 
   // Truthfulness: source status must classify live vs fallback

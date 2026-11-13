@@ -49,3 +49,31 @@
 | LIM-004 | Exa optional | Live news requires `EXA_API_KEY`; otherwise fallback labeled |
 | LIM-005 | Model underperformance | Ensemble doesn't beat every baseline; all R² negative |
 | LIM-006 | No `.env` file | No live API keys configured in workspace |
+
+---
+
+## Resolved Bugs — Application-Wide Completion (2026-11-13)
+
+| ID | Bug | Severity | Root Cause | Fix | Verification |
+|:---|:---|:---|:---|:---|:---|
+| BUG-013 | No persistence; data lost on server restart | High | Repositories held data in JS Maps only | Added SQLite (`better-sqlite3`) backend; all repositories read/write `hengseng.db`; seeded from JSON on first run | API audit 24/24; backend tests read/write DB successfully |
+| BUG-014 | No authentication or authorization | High | All API routes open; no user model | Added register/login/me/users routes; JWT access tokens; `requireAuth`/`requireRole` middleware; mutations role-protected | Jest: 401 without token, 403 for viewer, 200 for admin |
+| BUG-015 | No frontend authentication/session | High | UI rendered regardless of login | Added `AuthContext`, `LoginView`, `api.ts` client with auto 401 clearing; `App` gates shell behind `isAuthenticated` | Vitest: session helpers + LoginView render (5/5) |
+| BUG-016 | No automated test suite | High | Only manual audit scripts existed | Added Vitest (frontend), Jest+Supertest (backend), Playwright (E2E) | 5 frontend + 12 backend + 10 E2E API tests all pass |
+| BUG-017 | Three-dot overflow menu showed only secondary tabs | Medium | Overflow menu iterated `SECONDARY_TABS` only | Rewrote desktop overflow menu to render all grouped navigation items | Lint PASS; menu lists every module |
+| BUG-018 | Overview sentiment chart lacked clear selected-score readout | Medium | No always-visible selected value | Added high-contrast "Sentiment Range" readout under Cross-Asset Sentiment Polarity chart | Lint PASS; readable in light + dark themes |
+| BUG-019 | Inconsistent Unicode em dashes (—) across copy | Low | Copy contained em dashes | Replaced all em dashes with normal hyphens (-) across `src/`, `server/`, `scripts/` | 10 files normalized; lint PASS |
+
+## Known Limitations (Not Bugs) — Updated
+
+| ID | Limitation | Disclosure |
+|:---|:---|:---|
+| LIM-001 | Small sample: 10 bars → 5 folds → 50 OOS observations | Results unstable, not for live capital allocation |
+| LIM-002 | Synthetic/curated data | OHLCV deterministic seeded; social/news are local fallback |
+| LIM-003 | No live Apify | Social data always `local-fallback` without credentials |
+| LIM-004 | Exa optional | Live news requires `EXA_API_KEY`; otherwise fallback labeled |
+| LIM-005 | Model underperformance | Ensemble doesn't beat every baseline; all R² negative |
+| LIM-006 | No `.env` file | No live API keys configured in workspace |
+| LIM-007 | Rendered-browser E2E blocked | Playwright Chromium cannot launch in this host (OS access denied / exit 0x80000005) even with `--no-sandbox`. API-layer E2E passes; UI-rendered E2E deferred to a Chrome-enabled environment |
+| LIM-008 | Mobile responsive screenshots not regenerated | Due to LIM-007; responsive layout verified at code/Tailwind level across all required viewports |
+

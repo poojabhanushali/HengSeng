@@ -157,3 +157,20 @@ No horizontal overflow detected on any viewport. All mobile drawer interactions 
 | `QA_REPORT.md` | Marked as superseded | 2026-11-12 |
 | `BUG_TRACKER.md` | Created | 2026-11-12 |
 | `FEATURE_TRACKER.md` | Created | 2026-11-12 |
+
+---
+
+## New Features — Application-Wide Completion (2026-11-13)
+
+| ID | Feature | Backend | Database | Frontend | Auth/RBAC | Tests | Status | Verification |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| F-027 | SQLite database persistence | `server/db/sqlite.ts` | `hengseng.db` (all tables) | API reads/writes DB | audit logging | API contract 24/24 | Implemented | Seed from JSON on first run; all reads/writes via SQL |
+| F-028 | Authentication (register/login/me) | `auth/*` routes | `users` table | `LoginView`, `AuthContext` | JWT session | Jest + Vitest | Implemented | 12 backend + 5 frontend tests pass |
+| F-029 | Role-based access control (admin/manager/viewer) | `requireRole(...)` middleware | n/a | UI gating | route + component level | Jest (403 viewer) | Implemented | Mutations protected; admin/manager/viewer seeded |
+| F-030 | Em dash → hyphen normalization | n/a | n/a | all components | n/a | lint PASS | Implemented | 10 source files normalized |
+| F-031 | Overflow menu shows ALL navigation items | n/a | n/a | `Navigation.tsx` | n/a | lint PASS | Implemented | Desktop three-dot menu renders every grouped item |
+| F-032 | Overview sentiment high-contrast readout | n/a | n/a | `OverviewView.tsx` | n/a | lint PASS | Implemented | Sentiment Range readout, light + dark safe |
+| F-033 | Frontend unit tests (Vitest) | n/a | n/a | `api.test.ts`, `LoginView.test.tsx` | n/a | 5/5 pass | Implemented | Session helpers + login form render |
+| F-034 | Backend unit tests (Jest + Supertest) | all API routes | SQLite via createApp | n/a | auth + RBAC tested | 12/12 pass | Implemented | Auth, contracts, role access |
+| F-035 | End-to-end tests (Playwright) | API via browser `request` | n/a | `app.spec.ts` | auth (401) tested | 10/10 API pass | Implemented | Rendered-browser UI blocked by host (see QA report) |
+

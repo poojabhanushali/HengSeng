@@ -1,0 +1,7 @@
+MARKER: calling startServer
+[HengSeng Agent] Database initialized: 10 assets in SQLite store.
+[2m12:46:02 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m Re-optimizing dependencies because lockfile has changed
+MARKER: startServer resolved
+[HengSeng Agent] Server listening on http://0.0.0.0:3000
+[HengSeng Agent] REST API mounted at http://0.0.0.0:3000/api/v1
+[2m12:46:04 pm[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [optimizer] bundling dependencies...

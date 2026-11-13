@@ -1,165 +1,16 @@
 import { Asset, ExchangeCode, PriceBar, SentimentDirection, RiskLevel } from '../../src/types';
 import ASSET_UNIVERSE from './assets.json';
+import {
+  computeTechnicalIndicators,
+  calculatePivotLevels,
+  generateHistoricalBars,
+} from './marketGenerators';
+import { appDb } from '../db/sqlite';
 
-// Helper to calculate technical indicators on PriceBar series
-export function computeTechnicalIndicators(bars: PriceBar[]): PriceBar[] {
-  const result = [...bars];
+// ---------------------------------------------------------------------------
+// In-memory market data repository backed by SQLite persistence
+// ---------------------------------------------------------------------------
 
-  // 1. Calculate SMA-5 and SMA-10
-  for (let i = 0; i < result.length; i++) {
-    if (i >= 4) {
-      const slice5 = result.slice(i - 4, i + 1);
-      result[i].sma5 = Number((slice5.reduce((sum, b) => sum + b.close, 0) / 5).toFixed(2));
-    }
-    if (i >= 9) {
-      const slice10 = result.slice(i - 9, i + 1);
-      result[i].sma10 = Number((slice10.reduce((sum, b) => sum + b.close, 0) / 10).toFixed(2));
-    }
-  }
-
-  // 2. Calculate RSI (14 periods) - Wilder's RSI.
-  // When fewer than 14 changes are available, use an adaptive shorter period and
-  // record it on the bar so the UI never labels a 9-period value as a 14-period RSI.
-  let avgGain = 0;
-  let avgLoss = 0;
-  for (let i = 1; i < result.length; i++) {
-    const change = result[i].close - result[i - 1].close;
-    const gain = change > 0 ? change : 0;
-    const loss = change < 0 ? Math.abs(change) : 0;
-
-    if (i === 1) {
-      avgGain = gain;
-      avgLoss = loss;
-    } else if (i <= 14) {
-      avgGain += gain;
-      avgLoss += loss;
-    } else {
-      avgGain = (avgGain * 13 + gain) / 14;
-      avgLoss = (avgLoss * 13 + loss) / 14;
-    }
-
-    if (i >= 2) {
-      const period = Math.min(14, i);
-      const avgG = avgGain / period;
-      const avgL = avgLoss / period;
-      const rs = avgL === 0 ? 100 : avgG / avgL;
-      result[i].rsi14 = Number((100 - (100 / (1 + rs))).toFixed(2));
-      result[i].rsiPeriod = period;
-      if (i === 14) {
-        avgGain = avgG;
-        avgLoss = avgL;
-      }
-    }
-  }
-
-  // 3. Calculate MACD (12, 26, 9)
-  const ema12 = calculateEMA(result.map(b => b.close), 12);
-  const ema26 = calculateEMA(result.map(b => b.close), 26);
-  const macdLine = ema12.map((val, idx) => Number((val - ema26[idx]).toFixed(2)));
-  const signalLine = calculateEMA(macdLine, 9);
-
-  for (let i = 0; i < result.length; i++) {
-    result[i].macd = macdLine[i];
-    result[i].macdSignal = signalLine[i];
-  }
-
-  return result;
-}
-
-function calculateEMA(values: number[], period: number): number[] {
-  const k = 2 / (period + 1);
-  const ema: number[] = [];
-  let prevEma = values[0];
-  ema.push(prevEma);
-
-  for (let i = 1; i < values.length; i++) {
-    const currentEma = values[i] * k + prevEma * (1 - k);
-    ema.push(Number(currentEma.toFixed(2)));
-    prevEma = currentEma;
-  }
-  return ema;
-}
-
-// Support and Resistance calculation using Classic Floor Trader Pivot Points & Swing Highs/Lows
-export function calculatePivotLevels(bars: PriceBar[]) {
-  if (bars.length === 0) return { pivot: 0, s1: 0, s2: 0, r1: 0, r2: 0, swingHigh: 0, swingLow: 0 };
-
-  const lastBar = bars[bars.length - 1];
-  const high = lastBar.high;
-  const low = lastBar.low;
-  const close = lastBar.close;
-
-  const pivot = Number(((high + low + close) / 3).toFixed(2));
-  const r1 = Number((2 * pivot - low).toFixed(2));
-  const s1 = Number((2 * pivot - high).toFixed(2));
-  const r2 = Number((pivot + (high - low)).toFixed(2));
-  const s2 = Number((pivot - (high - low)).toFixed(2));
-
-  // 10-day rolling swing highs & lows
-  const swingHigh = Math.max(...bars.map(b => b.high));
-  const swingLow = Math.min(...bars.map(b => b.low));
-
-  return {
-    pivot,
-    s1,
-    s2,
-    r1,
-    r2,
-    swingHigh: Number(swingHigh.toFixed(2)),
-    swingLow: Number(swingLow.toFixed(2)),
-  };
-}
-
-// Generate realistic 10-day historical daily bars for an asset
-export function generateHistoricalBars(ticker: string, basePrice: number, days = 10): PriceBar[] {
-  const bars: PriceBar[] = [];
-  const now = new Date();
-
-  // Seed deterministically based on ticker characters for consistency
-  let seed = 0;
-  for (let i = 0; i < ticker.length; i++) seed += ticker.charCodeAt(i);
-
-  function seededRandom() {
-    seed = (seed * 9301 + 49297) % 233280;
-    return seed / 233280;
-  }
-
-  let currentClose = basePrice;
-  const dateCursor = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-
-  for (let d = 0; d < days; d++) {
-    dateCursor.setDate(dateCursor.getDate() + 1);
-
-    // Skip weekends
-    const dayOfWeek = dateCursor.getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
-      continue;
-    }
-
-    const volatility = 0.018; // ~1.8% daily volatility
-    const changePct = (seededRandom() - 0.48) * 2 * volatility;
-    const open = Number((currentClose * (1 + (seededRandom() - 0.5) * 0.005)).toFixed(2));
-    const close = Number((currentClose * (1 + changePct)).toFixed(2));
-    const high = Number((Math.max(open, close) * (1 + seededRandom() * 0.012)).toFixed(2));
-    const low = Number((Math.min(open, close) * (1 - seededRandom() * 0.012)).toFixed(2));
-    const volume = Math.floor(1000000 + seededRandom() * 15000000);
-
-    bars.push({
-      timestamp: dateCursor.toISOString(),
-      open,
-      high,
-      low,
-      close,
-      volume,
-    });
-
-    currentClose = close;
-  }
-
-  return computeTechnicalIndicators(bars);
-}
-
-// In-memory store of market data for 10 assets
 export class MarketDataRepository {
   private barsMap: Map<string, PriceBar[]> = new Map();
   private assetsMap: Map<string, Asset> = new Map();
@@ -169,52 +20,170 @@ export class MarketDataRepository {
   }
 
   public initializeData() {
-    for (const info of ASSET_UNIVERSE) {
-      const bars = generateHistoricalBars(info.ticker, info.basePrice, 14);
-      this.barsMap.set(info.ticker, bars);
+    this.barsMap.clear();
+    this.assetsMap.clear();
+    this.loadFromDb();
+  }
 
-      const latestBar = bars[bars.length - 1];
-      const prevBar = bars.length > 1 ? bars[bars.length - 2] : latestBar;
-      const priceChange = Number((latestBar.close - prevBar.close).toFixed(2));
-      const priceChangePercent = Number(((priceChange / prevBar.close) * 100).toFixed(2));
-      const pivots = calculatePivotLevels(bars);
-
+  private loadFromDb() {
+    const db = appDb.db;
+    const rows = db.prepare('SELECT * FROM assets').all() as any[];
+    for (const r of rows) {
       const asset: Asset = {
-        ticker: info.ticker,
-        name: info.name,
-        nameLocal: info.nameLocal,
-        exchange: info.exchange as ExchangeCode,
-        sector: info.sector,
-        currency: info.currency,
-        currentPrice: latestBar.close,
-        previousClose: prevBar.close,
-        priceChange,
-        priceChangePercent,
-        priceTimestamp: latestBar.timestamp,
-        high52w: info.high52w,
-        low52w: info.low52w,
-        volume: latestBar.volume,
-        overallSentiment: 0,
-        sentimentDirection: 'Neutral',
-        sentimentConfidence: 0.75,
-        socialMentions: 0,
-        newsMentions: 0,
-        engagementWeightedSentiment: 0,
-        positionSignal: priceChangePercent > 1.2 ? 'Long' : priceChangePercent < -1.2 ? 'Short' : 'Holding',
-        marketTrend: priceChangePercent > 0.5 ? 'Uptrend' : priceChangePercent < -0.5 ? 'Downtrend' : 'Consolidation',
-        supportLevels: [pivots.s1, pivots.s2, pivots.swingLow],
-        resistanceLevels: [pivots.r1, pivots.r2, pivots.swingHigh],
-        pivotPoint: pivots.pivot,
-        riskClassification: Math.abs(priceChangePercent) > 2.5 ? 'High' : Math.abs(priceChangePercent) > 1.0 ? 'Medium' : 'Low',
-        predictedPrice: latestBar.close,
-        predictedChangePercent: 0,
-        predictionDirection: 'Neutral',
-        predictionConfidence: 0.82,
-        lastUpdated: new Date().toISOString(),
+        ticker: r.ticker,
+        name: r.name,
+        nameLocal: r.name_local,
+        exchange: r.exchange as ExchangeCode,
+        sector: r.sector,
+        currency: r.currency,
+        currentPrice: r.current_price,
+        previousClose: r.previous_close,
+        priceChange: r.price_change,
+        priceChangePercent: r.price_change_percent,
+        priceTimestamp: r.price_timestamp,
+        high52w: r.high52w,
+        low52w: r.low52w,
+        volume: r.avg_volume,
+        overallSentiment: r.overall_sentiment,
+        sentimentDirection: r.sentiment_direction as SentimentDirection,
+        sentimentConfidence: r.sentiment_confidence,
+        socialMentions: r.social_mentions,
+        newsMentions: r.news_mentions,
+        engagementWeightedSentiment: r.engagement_weighted_sentiment,
+        positionSignal: r.position_signal as any,
+        marketTrend: r.market_trend as any,
+        supportLevels: fromJsonArray(r.support_levels),
+        resistanceLevels: fromJsonArray(r.resistance_levels),
+        pivotPoint: r.pivot_point,
+        riskClassification: r.risk_classification as RiskLevel,
+        predictedPrice: r.predicted_price,
+        predictedChangePercent: r.predicted_change_percent,
+        predictionDirection: r.prediction_direction as SentimentDirection,
+        predictionConfidence: r.prediction_confidence,
+        lastUpdated: r.last_updated,
       };
-
-      this.assetsMap.set(info.ticker, asset);
+      this.assetsMap.set(r.ticker, asset);
     }
+
+    const barRows = db.prepare('SELECT * FROM price_bars ORDER BY ticker, timestamp').all() as any[];
+    const byTicker = new Map<string, any[]>();
+    for (const r of barRows) {
+      if (!byTicker.has(r.ticker)) byTicker.set(r.ticker, []);
+      byTicker.get(r.ticker)!.push(r);
+    }
+    for (const [ticker, rows] of byTicker) {
+      this.barsMap.set(ticker, rows.map(r => ({
+        timestamp: r.timestamp,
+        open: r.open,
+        high: r.high,
+        low: r.low,
+        close: r.close,
+        volume: r.volume,
+        sma5: r.sma5 ?? undefined,
+        sma10: r.sma10 ?? undefined,
+        rsi14: r.rsi14 ?? undefined,
+        rsiPeriod: r.rsi_period ?? undefined,
+        macd: r.macd ?? undefined,
+        macdSignal: r.macd_signal ?? undefined,
+      })));
+    }
+
+    // If DB is empty (fresh), seed from JSON + deterministic generator
+    if (this.assetsMap.size === 0) {
+      this.seedFromJson();
+    }
+  }
+
+  private seedFromJson() {
+    const db = appDb.db;
+    const tx = db.transaction(() => {
+      const insertAsset = db.prepare(`
+        INSERT OR IGNORE INTO assets (
+          ticker,name,name_local,exchange,sector,currency,base_price,high52w,low52w,avg_volume,
+          current_price,previous_close,price_change,price_change_percent,price_timestamp,
+          overall_sentiment,sentiment_direction,sentiment_confidence,social_mentions,news_mentions,
+          engagement_weighted_sentiment,position_signal,market_trend,pivot_point,risk_classification,
+          predicted_price,predicted_change_percent,prediction_direction,prediction_confidence,last_updated,
+          support_levels,resistance_levels
+        ) VALUES (
+          @ticker,@name,@nameLocal,@exchange,@sector,@currency,@basePrice,@high52w,@low52w,@avgVolume,
+          @currentPrice,@previousClose,@priceChange,@priceChangePercent,@priceTimestamp,
+          @overallSentiment,@sentimentDirection,@sentimentConfidence,@socialMentions,@newsMentions,
+          @engagementWeightedSentiment,@positionSignal,@marketTrend,@pivotPoint,@riskClassification,
+          @predictedPrice,@predictedChangePercent,@predictionDirection,@predictionConfidence,@lastUpdated,
+          @supportLevels,@resistanceLevels
+        );
+      `);
+      const insertBar = db.prepare(`
+        INSERT OR IGNORE INTO price_bars (
+          ticker,timestamp,open,high,low,close,volume,sma5,sma10,rsi14,rsi_period,macd,macd_signal
+        ) VALUES (@ticker,@timestamp,@open,@high,@low,@close,@volume,@sma5,@sma10,@rsi14,@rsiPeriod,@macd,@macdSignal);
+      `);
+      for (const info of ASSET_UNIVERSE) {
+        const bars = generateHistoricalBars(info.ticker, info.basePrice, 14);
+        const latestBar = bars[bars.length - 1];
+        const prevBar = bars.length > 1 ? bars[bars.length - 2] : latestBar;
+        const priceChange = Number((latestBar.close - prevBar.close).toFixed(2));
+        const priceChangePercent = Number(((priceChange / prevBar.close) * 100).toFixed(2));
+        const now = new Date().toISOString();
+        const pivots = calculatePivotLevels(bars);
+        const asset: Asset = {
+          ticker: info.ticker,
+          name: info.name,
+          nameLocal: info.nameLocal,
+          exchange: info.exchange as ExchangeCode,
+          sector: info.sector,
+          currency: info.currency,
+          currentPrice: latestBar.close,
+          previousClose: prevBar.close,
+          priceChange,
+          priceChangePercent,
+          priceTimestamp: latestBar.timestamp,
+          high52w: info.high52w,
+          low52w: info.low52w,
+          volume: latestBar.volume,
+          overallSentiment: 0,
+          sentimentDirection: 'Neutral',
+          sentimentConfidence: 0.75,
+          socialMentions: 0,
+          newsMentions: 0,
+          engagementWeightedSentiment: 0,
+          positionSignal: priceChangePercent > 1.2 ? 'Long' : priceChangePercent < -1.2 ? 'Short' : 'Holding',
+          marketTrend: priceChangePercent > 0.5 ? 'Uptrend' : priceChangePercent < -0.5 ? 'Downtrend' : 'Consolidation',
+          supportLevels: [pivots.s1, pivots.s2, pivots.swingLow],
+          resistanceLevels: [pivots.r1, pivots.r2, pivots.swingHigh],
+          pivotPoint: pivots.pivot,
+          riskClassification: Math.abs(priceChangePercent) > 2.5 ? 'High' : Math.abs(priceChangePercent) > 1.0 ? 'Medium' : 'Low',
+          predictedPrice: latestBar.close,
+          predictedChangePercent: 0,
+          predictionDirection: 'Neutral',
+          predictionConfidence: 0.82,
+          lastUpdated: now,
+        };
+        this.assetsMap.set(info.ticker, asset);
+        insertAsset.run({
+          ...asset,
+          basePrice: info.basePrice,
+          high52w: info.high52w,
+          low52w: info.low52w,
+          avgVolume: info.avgVolume,
+          nameLocal: asset.nameLocal,
+          supportLevels: toJson(asset.supportLevels),
+          resistanceLevels: toJson(asset.resistanceLevels),
+        });
+        for (const bar of bars) {
+          this.barsMap.set(info.ticker, bars);
+          insertBar.run({
+            ticker: info.ticker,
+            timestamp: bar.timestamp,
+            open: bar.open, high: bar.high, low: bar.low, close: bar.close, volume: bar.volume,
+            sma5: bar.sma5 ?? null, sma10: bar.sma10 ?? null, rsi14: bar.rsi14 ?? null,
+            rsiPeriod: bar.rsiPeriod ?? null, macd: bar.macd ?? null, macdSignal: bar.macdSignal ?? null,
+          });
+        }
+      }
+    });
+    tx();
   }
 
   public getAllAssets(): Asset[] {
@@ -231,7 +200,41 @@ export class MarketDataRepository {
 
   public updateAsset(asset: Asset) {
     this.assetsMap.set(asset.ticker, asset);
+    const db = appDb.db;
+    db.prepare(`
+      UPDATE assets SET
+        name=@name,name_local=@nameLocal,exchange=@exchange,sector=@sector,currency=@currency,
+        current_price=@currentPrice,previous_close=@previousClose,price_change=@priceChange,
+        price_change_percent=@priceChangePercent,price_timestamp=@priceTimestamp,
+        overall_sentiment=@overallSentiment,sentiment_direction=@sentimentDirection,
+        sentiment_confidence=@sentimentConfidence,social_mentions=@socialMentions,
+        news_mentions=@newsMentions,engagement_weighted_sentiment=@engagementWeightedSentiment,
+        position_signal=@positionSignal,market_trend=@marketTrend,pivot_point=@pivotPoint,
+        risk_classification=@riskClassification,predicted_price=@predictedPrice,
+        predicted_change_percent=@predictedChangePercent,prediction_direction=@predictionDirection,
+        prediction_confidence=@predictionConfidence,last_updated=@lastUpdated,
+        support_levels=@supportLevels,resistance_levels=@resistanceLevels
+      WHERE ticker=@ticker
+    `).run({
+      ...asset,
+      nameLocal: asset.nameLocal,
+      supportLevels: toJson(asset.supportLevels),
+      resistanceLevels: toJson(asset.resistanceLevels),
+    });
   }
 }
 
 export const marketRepo = new MarketDataRepository();
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function toJson(value: unknown): string {
+  return JSON.stringify(value);
+}
+
+function fromJsonArray(value: string | null): number[] {
+  if (!value) return [];
+  try { return JSON.parse(value); } catch { return []; }
+}
