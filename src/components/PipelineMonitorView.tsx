@@ -12,6 +12,7 @@ import {
   Bug,
 } from 'lucide-react';
 import { DropdownMenu } from './DropdownMenu';
+import { apiJson } from '../lib/api';
 
 interface PipelineMonitorViewProps {
   isPipelineRunning: boolean;
@@ -29,16 +30,16 @@ export const PipelineMonitorView: React.FC<PipelineMonitorViewProps> = ({
   const fetchStatus = async () => {
     try {
       const [statusRes, historyRes] = await Promise.all([
-        fetch('/api/v1/agents/status'),
-        fetch('/api/v1/ingestion/history'),
+        apiJson('/api/v1/agents/status'),
+        apiJson('/api/v1/ingestion/history'),
       ]);
-      if (statusRes.ok) {
-        const data = await statusRes.json();
+      if (statusRes) {
+        const data = statusRes;
         setAgents(data.agents || []);
         setIntegrityChecks(data.integrityChecks || []);
       }
-      if (historyRes.ok) {
-        const hData = await historyRes.json();
+      if (historyRes) {
+        const hData = historyRes;
         setHistory(hData.history || []);
       }
     } catch (err) {

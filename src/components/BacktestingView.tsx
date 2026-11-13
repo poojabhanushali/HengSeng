@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Asset, BacktestPoint } from '../types';
 import { History, TrendingUp, CheckCircle, XCircle } from 'lucide-react';
+import { apiJson } from '../lib/api';
 import {
   ResponsiveContainer,
   LineChart,
@@ -26,15 +27,9 @@ export const BacktestingView: React.FC<BacktestingViewProps> = ({ assets }) => {
     async function loadBacktest() {
       setLoading(true);
       try {
-        const res = await fetch(`/api/v1/predictions/backtesting?ticker=${selectedTicker}`);
-        if (res.ok) {
-          const data = await res.json();
-          setPoints(data.backtestPoints || []);
-          setSummary(data.summary || null);
-        } else {
-          setPoints([]);
-          setSummary(null);
-        }
+        const data = await apiJson(`/api/v1/predictions/backtesting?ticker=${selectedTicker}`);
+        setPoints(data.backtestPoints || []);
+        setSummary(data.summary || null);
       } catch (err) {
         console.error('Failed to load backtest points:', err);
         setPoints([]);

@@ -13,11 +13,13 @@ import { BacktestingView } from './components/BacktestingView';
 import { ReportsView } from './components/ReportsView';
 import { DataSourcesView } from './components/DataSourcesView';
 import { PipelineMonitorView } from './components/PipelineMonitorView';
+import { RolesAndPermissionsView } from './components/RolesAndPermissionsView';
 import { SettingsView } from './components/SettingsView';
 import { Sidebar } from './components/Sidebar';
 import { LoginView } from './components/LoginView';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { apiJson } from './lib/api';
 
 export function AppInner() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
@@ -39,11 +41,8 @@ export function AppInner() {
 
   const fetchAssets = async () => {
     try {
-      const res = await fetch('/api/v1/assets');
-      if (res.ok) {
-        const data = await res.json();
-        setAssets(data.assets || []);
-      }
+      const data = await apiJson('/api/v1/assets');
+      setAssets(data.assets || []);
     } catch (err) {
       console.error('Failed to fetch assets:', err);
     }
@@ -56,7 +55,7 @@ export function AppInner() {
   const handleTriggerPipeline = async () => {
     setIsPipelineRunning(true);
     try {
-      await fetch('/api/v1/agents/run', { method: 'POST' });
+      await apiJson('/api/v1/agents/run', { method: 'POST' });
       await fetchAssets();
     } catch (err) {
       console.error('Error running pipeline:', err);
@@ -137,6 +136,7 @@ export function AppInner() {
                   onTriggerPipeline={handleTriggerPipeline}
                 />
               )}
+              {activeTab === 'permissions' && <RolesAndPermissionsView />}
               {activeTab === 'settings' && <SettingsView user={user} />}
             </>
           )

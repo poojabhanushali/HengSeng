@@ -7,6 +7,8 @@
  */
 const BASE = process.env.AUDIT_BASE_URL || 'http://localhost:3000';
 
+let adminToken = null;
+
 let pass = 0;
 let fail = 0;
 
@@ -45,7 +47,9 @@ async function check(statusFn, label, expectStatus, bodyCheck) {
 }
 
 async function get(path) {
-  const res = await fetch(BASE + path);
+  const headers = {};
+  if (adminToken) headers.Authorization = `Bearer ${adminToken}`;
+  const res = await fetch(BASE + path, { headers });
   const text = await res.text();
   let body = null;
   try {
@@ -86,7 +90,7 @@ async function main() {
   console.log('--- ERROR HANDLING & FALLBACK TRUTHFULNESS AUDIT ---');
 
   // Authenticate as admin for protected mutation routes
-  let adminToken = null;
+  adminToken = null;
   try {
     const loginRes = await fetch(BASE + '/api/v1/auth/login', {
       method: 'POST',

@@ -11,6 +11,7 @@ import {
   Filter,
 } from 'lucide-react';
 import { TranslatedText } from './TranslatedText';
+import { apiJson } from '../lib/api';
 
 export const SocialSentimentView: React.FC = () => {
   const [posts, setPosts] = useState<SocialPost[]>([]);
@@ -23,11 +24,8 @@ export const SocialSentimentView: React.FC = () => {
     async function loadPosts() {
       setLoading(true);
       try {
-        const res = await fetch('/api/v1/social/posts');
-        if (res.ok) {
-          const data = await res.json();
-          setPosts(data.posts || []);
-        }
+        const data = await apiJson('/api/v1/social/posts');
+        setPosts(data.posts || []);
       } catch (err) {
         console.error('Failed to load social posts:', err);
       } finally {

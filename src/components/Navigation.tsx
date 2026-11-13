@@ -25,6 +25,7 @@ import {
   ChevronLeft,
 } from 'lucide-react';
 import { ExchangeCode, User, UserRole } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 export type ActiveTab =
   | 'overview'
@@ -38,7 +39,8 @@ export type ActiveTab =
   | 'reports'
   | 'sources'
   | 'pipeline'
-  | 'settings';
+  | 'settings'
+  | 'permissions';
 
 interface NavigationProps {
   activeTab: ActiveTab;
@@ -58,7 +60,9 @@ interface NavigationProps {
 const isAdmin = (user: User | null): boolean => user?.role === 'admin';
 const isManagerOrAdmin = (user: User | null): boolean => user?.role === 'admin' || user?.role === 'manager';
 
-const GROUPED_NAV: { group: string; items: { id: ActiveTab; label: string; icon: React.ComponentType<{ className?: string }> }[] }[] = [
+type NavItem = { id: ActiveTab; label: string; icon: React.ComponentType<{ className?: string }>; permission?: [string, string] };
+
+const GROUPED_NAV: { group: string; items: NavItem[] }[] = [
   {
     group: 'Dashboard',
     items: [
@@ -69,30 +73,31 @@ const GROUPED_NAV: { group: string; items: { id: ActiveTab; label: string; icon:
   {
     group: 'Analysis',
     items: [
-      { id: 'assets', label: 'Asset Rankings', icon: TableProperties },
-      { id: 'social', label: 'Social Sentiment', icon: MessageSquareQuote },
-      { id: 'news', label: 'News Intelligence', icon: Newspaper },
+      { id: 'assets', label: 'Asset Rankings', icon: TableProperties, permission: ['assets', 'view'] },
+      { id: 'social', label: 'Social Sentiment', icon: MessageSquareQuote, permission: ['social', 'view'] },
+      { id: 'news', label: 'News Intelligence', icon: Newspaper, permission: ['news', 'view'] },
     ],
   },
   {
     group: 'ML & Predictions',
     items: [
-      { id: 'predictions', label: 'Price Predictions', icon: TrendingUp },
-      { id: 'performance', label: 'Model Validation', icon: Cpu },
-      { id: 'backtesting', label: 'Backtesting Lab', icon: History },
+      { id: 'predictions', label: 'Price Predictions', icon: TrendingUp, permission: ['predictions', 'view'] },
+      { id: 'performance', label: 'Model Validation', icon: Cpu, permission: ['predictions', 'view'] },
+      { id: 'backtesting', label: 'Backtesting Lab', icon: History, permission: ['predictions', 'view'] },
     ],
   },
   {
     group: 'Tools',
     items: [
-      { id: 'reports', label: 'Executive Reports', icon: FileSpreadsheet },
-      { id: 'sources', label: 'Data Registry', icon: Layers },
-      { id: 'pipeline', label: 'Pipeline Monitor', icon: Workflow },
+      { id: 'reports', label: 'Executive Reports', icon: FileSpreadsheet, permission: ['reports', 'view'] },
+      { id: 'sources', label: 'Data Registry', icon: Layers, permission: ['exchanges', 'view'] },
+      { id: 'pipeline', label: 'Pipeline Monitor', icon: Workflow, permission: ['pipeline', 'view'] },
+      { id: 'permissions', label: 'Roles & Permissions', icon: SettingsIcon, permission: ['roles', 'view'] },
     ],
   },
   {
     group: 'System',
-    items: [{ id: 'settings', label: 'Settings & Keys', icon: SettingsIcon }],
+    items: [{ id: 'settings', label: 'Settings & Keys', icon: SettingsIcon, permission: ['settings', 'view'] }],
   },
 ];
 
@@ -106,6 +111,7 @@ const SECONDARY_TABS: ActiveTab[] = [
   'sources',
   'pipeline',
   'settings',
+  'permissions',
 ];
 
 export const Navigation: React.FC<NavigationProps> = ({
@@ -122,8 +128,14 @@ export const Navigation: React.FC<NavigationProps> = ({
   user,
   onLogout,
 }) => {
+  const { hasPermission } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [overflowOpen, setOverflowOpen] = useState(false);
+
+  const visibleGroups = GROUPED_NAV.map(group => ({
+    ...group,
+    items: group.items.filter(item => !item.permission || hasPermission(item.permission[0], item.permission[1])),
+  })).filter(group => group.items.length > 0);
 
   const handleNavClick = (id: ActiveTab) => {
     setActiveTab(id);
@@ -180,16 +192,17 @@ export const Navigation: React.FC<NavigationProps> = ({
         </div>
 
         {/* Zone 3: Primary Actions & Theme */}
-        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-          <button
-            onClick={onTriggerPipeline}
-            disabled={isPipelineRunning}
-            className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-all whitespace-nowrap ${
-              isPipelineRunning
-                ? 'bg-emerald-700 opacity-80 cursor-wait'
-                : 'bg-emerald-600 hover:bg-emerald-500 shadow-sm active:scale-95'
-            }`}
-          >
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            {hasPermission('pipeline', 'run') && (
+              <button
+                onClick={onTriggerPipeline}
+                disabled={isPipelineRunning}
+                className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 text-xs font-medium rounded-lg text-white transition-all whitespace-nowrap ${
+                  isPipelineRunning
+                    ? 'bg-emerald-700 opacity-80 cursor-wait'
+                    : 'bg-emerald-600 hover:bg-emerald-500 shadow-sm active:scale-95'
+                }`}
+              >
             {isPipelineRunning ? (
               <>
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -204,7 +217,7 @@ export const Navigation: React.FC<NavigationProps> = ({
               </>
             )}
           </button>
-
+          )}
           {/* Overflow Menu for Secondary Actions (Desktop) */}
           <div className="relative hidden sm:flex items-center">
             <button
@@ -216,7 +229,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             </button>
             {overflowOpen && (
               <div className="absolute right-0 mt-2 w-[260px] bg-white dark:bg-[#0c1017] border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl p-1 z-50 max-h-[85vh] overflow-y-auto">
-                {GROUPED_NAV.map(group => (
+                {visibleGroups.map(group => (
                   <div key={group.group} className="mb-1">
                     <div className="px-3 py-1 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                       {group.group}
@@ -332,7 +345,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             </div>
 
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
-              {GROUPED_NAV.map(group => (
+              {visibleGroups.map(group => (
                 <div key={group.group} className="mb-2">
                   <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                     {group.group}

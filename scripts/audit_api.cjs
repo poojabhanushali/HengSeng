@@ -32,15 +32,41 @@ const endpoints = [
   { method: 'GET', path: '/api/v1/pipeline/status', validate: d => Array.isArray(d.agents) && d.agents.length === 8 }
 ];
 
+let adminToken = null;
+
+async function authenticate() {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({ username: 'admin', password: 'admin123' });
+    const req = http.request({
+      hostname: 'localhost', port: 3000, path: '/api/v1/auth/login', method: 'POST', timeout: 5000,
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+    }, res => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try { adminToken = JSON.parse(data).accessToken || null; } catch { adminToken = null; }
+        resolve();
+      });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
+    req.write(body);
+    req.end();
+  });
+}
+
 function request(method, path) {
   return new Promise((resolve, reject) => {
     const t0 = Date.now();
+    const headers = { 'Content-Type': 'application/json' };
+    if (adminToken) headers.Authorization = 'Bearer ' + adminToken;
     const req = http.request({
       hostname: 'localhost',
       port: 3000,
       path,
       method,
-      timeout: 5000
+      timeout: 5000,
+      headers,
     }, res => {
       let data = '';
       res.on('data', chunk => data += chunk);
@@ -61,6 +87,7 @@ function request(method, path) {
 }
 
 async function runAudit() {
+  try { await authenticate(); } catch (e) { console.log('[WARN] Auth failed, running unauthenticated:', e.message); }
   console.log('--- INDEPENDENT LIVE API ENDPOINT VERIFICATION ---');
   let passed = 0;
   let failed = 0;

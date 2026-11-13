@@ -54,7 +54,7 @@ Every module listed below has frontend, backend, database integration, validatio
 
 All application records are stored in `hengseng.db` (better-sqlite3, WAL mode). Seed data (JSON) populates the database **only on first run**; afterwards the app reads/writes the database. Tables:
 
-`assets`, `price_bars`, `social_posts`, `news_articles`, `users`, `settings`, `reports`, `ingestion_jobs`, `agent_states`, `audit_logs`.
+`assets`, `price_bars`, `social_posts`, `news_articles`, `users`, `settings`, `roles`, `permissions`, `role_permissions`, `user_permissions`, `reports`, `ingestion_jobs`, `agent_states`, `audit_logs`.
 
 No `localStorage` or frontend arrays are used as a substitute for backend persistence.
 
@@ -63,10 +63,11 @@ No `localStorage` or frontend arrays are used as a substitute for backend persis
 ## 5. Security / Permissions
 
 - JWT access tokens (8h expiry) issued on login.
-- `requireAuth` middleware on session routes; `requireRole(...)` on mutations.
-- Frontend gates: app shell renders only when `isAuthenticated`; admin/manager-only UI hidden from viewers.
-- Secrets (`APIFY_API_TOKEN`, `EXA_API_KEY`, `MARKET_DATA_API_KEY`) masked in `GET /api/v1/settings`.
-- Audit logs written for auth, settings, and role changes.
+- Database-driven RBAC: `roles`, `permissions`, `role_permissions`, `user_permissions` tables; 24 permissions across `assets`, `exchanges`, `social`, `news`, `predictions`, `pipeline`, `reports`, `settings`, `users`, `roles`, `permissions` resources with `view`/`create`/`edit`/`delete`/`run`/`approve` actions.
+- `authenticateUser` + `requirePermission`/`requireAnyPermission`/`requireRole` middleware on all data routes; frontend `PermissionGate` hides unauthorized UI.
+- Default role grants: admin = all permissions; manager = operational (no user/role mgmt); viewer = read-only.
+- `/permissions` UI (admin) lets authorized users edit role permissions and per-user user-permission overrides.
+- Secrets masked in `GET /api/v1/settings`; audit logs for auth/settings/role/permission changes.
 - Unknown routes return JSON 404 (never HTML stack traces); malformed JSON returns 400.
 
 ---
@@ -78,7 +79,7 @@ No `localStorage` or frontend arrays are used as a substitute for backend persis
 | `tsc --noEmit` (lint) | PASS |
 | `vite build` | PASS |
 | `scripts/audit_api.cjs` | 24/24 PASSED |
-| `scripts/audit_error_handling.cjs` | 12/12 PASSED |
+| `scripts/audit_error_handling.cjs` | 13/13 PASSED |
 | `npx vitest run` | 5/5 PASSED |
 | `npx jest` (backend) | 12/12 PASSED |
 | `npx playwright test` (API via `request`) | 10/10 PASSED |
@@ -94,9 +95,9 @@ Mobile-first; all required viewports (320×568 through 1920×1080) supported via
 
 ## 8. Files Added / Modified
 
-**Added:** `server/db/sqlite.ts`, `server/data/marketGenerators.ts`, `server/data/sentiment.ts`, `src/lib/api.ts`, `src/contexts/AuthContext.tsx`, `src/components/LoginView.tsx`, `src/lib/api.test.ts`, `src/components/LoginView.test.tsx`, `src/test/setup.ts`, `src/test/jest-dom-globals.d.ts`, `vitest.config.ts`, `jest.config.cjs`, `playwright.config.ts`, `tests/e2e/app.spec.ts`, `QA_AUDIT_REPORT.md`, `TEST_COVERAGE_REPORT.md`, `RESPONSIVE_TEST_REPORT.md`, `IMPLEMENTATION_SUMMARY.md`, plus launch/test helper scripts.
+**Added:** `server/db/sqlite.ts`, `server/data/marketGenerators.ts`, `server/data/sentiment.ts`, `server/rbac.ts`, `src/lib/api.ts`, `src/lib/permissions.tsx`, `src/contexts/AuthContext.tsx`, `src/components/LoginView.tsx`, `src/components/RolesAndPermissionsView.tsx`, `src/lib/api.test.ts`, `src/components/LoginView.test.tsx`, `src/test/setup.ts`, `src/test/jest-dom-globals.d.ts`, `vitest.config.ts`, `jest.config.cjs`, `playwright.config.ts`, `tests/e2e/app.spec.ts`, `QA_AUDIT_REPORT.md`, `TEST_COVERAGE_REPORT.md`, `RESPONSIVE_TEST_REPORT.md`, `IMPLEMENTATION_SUMMARY.md`, plus launch/test helper scripts.
 
-**Modified:** `server.ts`, `server/routes/api.ts` (auth + RBAC + audit logging), `server/data/marketData.ts`, `server/data/socialScraper.ts`, `server/data/newsEngine.ts` (all DB-backed), `src/App.tsx` (auth gating), `src/components/Navigation.tsx` (user profile/logout + full overflow menu), `src/components/Sidebar.tsx` (user prop), `src/components/SettingsView.tsx` (user prop), `src/components/OverviewView.tsx` (sentiment readout), `src/types/index.ts` (User, UserRole, AuthTokens), `package.json` (test scripts + dependencies), `tsconfig.json` (test exclusion).
+**Modified:** `server.ts`, `server/routes/api.ts` (auth + RBAC + audit logging), `server/data/marketData.ts`, `server/data/socialScraper.ts`, `server/data/newsEngine.ts` (all DB-backed), `src/App.tsx` (auth gating), `src/components/Navigation.tsx` (user profile/logout + permission-gated menu), `src/components/Sidebar.tsx` (permission-gated menu), `src/components/SettingsView.tsx` (user prop), `src/components/OverviewView.tsx` (sentiment readout), `src/types/index.ts` (User, UserRole, AuthTokens), `package.json` (test scripts + dependencies), `tsconfig.json` (test exclusion).
 
 **Em-dash → hyphen normalization** applied across `src/`, `server/`, `scripts/`.
 

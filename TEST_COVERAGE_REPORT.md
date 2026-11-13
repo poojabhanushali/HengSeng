@@ -52,6 +52,12 @@
 **Role-based access**
 - viewer cannot run agents → 403
 
+**RBAC permissions (database-driven)**
+- admin can access `/api/v1/auth/roles` → 200
+- viewer cannot access `/api/v1/auth/roles` → 403 (`roles:view`)
+- manager cannot access `/api/v1/auth/roles` → 403
+- unauthenticated `/api/v1/assets` → 401
+
 ---
 
 ## 4. End-to-End (Playwright) — 10 executed API tests

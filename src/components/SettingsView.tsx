@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SystemSettings, LanguageCode, LanguagePrefs, User } from '../types';
 import { Settings, Save, CheckCircle2, Key, Sliders, Shield, Database, Globe2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
+import { apiJson } from '../lib/api';
 
 const LANGUAGE_OPTIONS: { id: LanguageCode; label: string; desc: string }[] = [
   {
@@ -46,11 +47,8 @@ export const SettingsView: React.FC<{ user: User | null }> = ({ user }) => {
   useEffect(() => {
     async function loadSettings() {
       try {
-        const res = await fetch('/api/v1/settings');
-        if (res.ok) {
-          const data = await res.json();
-          setSettings(prev => ({ ...prev, ...data }));
-        }
+        const data = await apiJson('/api/v1/settings');
+        setSettings(prev => ({ ...prev, ...data }));
       } catch (err) {
         console.error('Failed to load settings:', err);
       }
@@ -64,15 +62,12 @@ export const SettingsView: React.FC<{ user: User | null }> = ({ user }) => {
     setSavedSuccess(false);
 
     try {
-      const res = await fetch('/api/v1/settings', {
+      await apiJson('/api/v1/settings', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
       });
-      if (res.ok) {
-        setSavedSuccess(true);
-        setTimeout(() => setSavedSuccess(false), 3000);
-      }
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3000);
     } catch (err) {
       console.error('Failed to save settings:', err);
     } finally {

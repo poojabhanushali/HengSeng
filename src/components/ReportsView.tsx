@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ExecutiveReport, ExchangeCode } from '../types';
 import { FileSpreadsheet, Download, Printer, Plus, Sparkles, CheckCircle2, ExternalLink } from 'lucide-react';
 import { DropdownMenu } from './DropdownMenu';
+import { apiJson } from '../lib/api';
 
 export const ReportsView: React.FC = () => {
   const [reports, setReports] = useState<ExecutiveReport[]>([]);
@@ -15,11 +16,8 @@ export const ReportsView: React.FC = () => {
   useEffect(() => {
     async function loadReports() {
       try {
-        const res = await fetch('/api/v1/reports');
-        if (res.ok) {
-          const data = await res.json();
-          setReports(data.reports || []);
-        }
+        const data = await apiJson('/api/v1/reports');
+        setReports(data.reports || []);
       } catch (err) {
         console.error('Failed to load reports:', err);
       }
@@ -30,15 +28,11 @@ export const ReportsView: React.FC = () => {
   const handleGenerateReport = async () => {
     setGenerating(true);
     try {
-      const res = await fetch('/api/v1/reports/generate', {
+      const newRep = await apiJson('/api/v1/reports/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ exchange: selectedExchange }),
       });
-      if (res.ok) {
-        const newRep = await res.json();
-        setReports(prev => [newRep, ...prev]);
-      }
+      setReports(prev => [newRep, ...prev]);
     } catch (err) {
       console.error('Failed to generate report:', err);
     } finally {

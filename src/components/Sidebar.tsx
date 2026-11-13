@@ -1,5 +1,6 @@
 import React from 'react';
 import { User } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 import {
   LayoutDashboard,
   Globe2,
@@ -17,7 +18,9 @@ import {
 } from 'lucide-react';
 import { ActiveTab } from './Navigation';
 
-const GROUPED_NAV: { group: string; items: { id: ActiveTab; label: string; icon: React.ComponentType<{ className?: string }> }[] }[] = [
+type NavItem = { id: ActiveTab; label: string; icon: React.ComponentType<{ className?: string }>; permission?: [string, string] };
+
+const GROUPED_NAV: { group: string; items: NavItem[] }[] = [
   {
     group: 'Dashboard',
     items: [
@@ -28,34 +31,35 @@ const GROUPED_NAV: { group: string; items: { id: ActiveTab; label: string; icon:
   {
     group: 'Analysis',
     items: [
-      { id: 'assets', label: 'Asset Rankings', icon: TableProperties },
-      { id: 'social', label: 'Social Sentiment', icon: MessageSquareQuote },
-      { id: 'news', label: 'News Intelligence', icon: Newspaper },
+      { id: 'assets', label: 'Asset Rankings', icon: TableProperties, permission: ['assets', 'view'] },
+      { id: 'social', label: 'Social Sentiment', icon: MessageSquareQuote, permission: ['social', 'view'] },
+      { id: 'news', label: 'News Intelligence', icon: Newspaper, permission: ['news', 'view'] },
     ],
   },
   {
     group: 'ML & Predictions',
     items: [
-      { id: 'predictions', label: 'Price Predictions', icon: TrendingUp },
-      { id: 'performance', label: 'Model Validation', icon: Cpu },
-      { id: 'backtesting', label: 'Backtesting Lab', icon: History },
+      { id: 'predictions', label: 'Price Predictions', icon: TrendingUp, permission: ['predictions', 'view'] },
+      { id: 'performance', label: 'Model Validation', icon: Cpu, permission: ['predictions', 'view'] },
+      { id: 'backtesting', label: 'Backtesting Lab', icon: History, permission: ['predictions', 'view'] },
     ],
   },
   {
     group: 'Tools',
     items: [
-      { id: 'reports', label: 'Executive Reports', icon: FileSpreadsheet },
-      { id: 'sources', label: 'Data Registry', icon: Layers },
-      { id: 'pipeline', label: 'Pipeline Monitor', icon: Workflow },
+      { id: 'reports', label: 'Executive Reports', icon: FileSpreadsheet, permission: ['reports', 'view'] },
+      { id: 'sources', label: 'Data Registry', icon: Layers, permission: ['exchanges', 'view'] },
+      { id: 'pipeline', label: 'Pipeline Monitor', icon: Workflow, permission: ['pipeline', 'view'] },
+      { id: 'permissions', label: 'Roles & Permissions', icon: SettingsIcon, permission: ['roles', 'view'] },
     ],
   },
   {
     group: 'System',
-    items: [{ id: 'settings', label: 'Settings & Keys', icon: SettingsIcon }],
+    items: [{ id: 'settings', label: 'Settings & Keys', icon: SettingsIcon, permission: ['settings', 'view'] }],
   },
 ];
 
-const NavItem: React.FC<{ item: { id: ActiveTab; label: string; icon: React.ComponentType<{ className?: string }> }; isActive: boolean; onSelect: (id: ActiveTab) => void }> = ({ item, isActive, onSelect }) => {
+const NavItem: React.FC<{ item: NavItem; isActive: boolean; onSelect: (id: ActiveTab) => void }> = ({ item, isActive, onSelect }) => {
   const Icon = item.icon;
   return (
     <button
@@ -80,7 +84,13 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, collapsed, user }) => {
+  const { hasPermission } = useAuth();
   const sidebarWidth = collapsed ? 16 : 256;
+
+  const visibleGroups = GROUPED_NAV.map(group => ({
+    ...group,
+    items: group.items.filter(item => !item.permission || hasPermission(item.permission[0], item.permission[1])),
+  })).filter(group => group.items.length > 0);
 
   return (
     <aside
@@ -107,7 +117,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, colla
           </div>
 
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            {GROUPED_NAV.map(group => (
+            {visibleGroups.map(group => (
               <div key={group.group} className="mb-1">
                 <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                   {group.group}

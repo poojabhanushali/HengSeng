@@ -31,6 +31,7 @@ import {
 } from 'recharts';
 import { TranslatedText } from './TranslatedText';
 import { NestedTabs } from './DropdownMenu';
+import { apiJson } from '../lib/api';
 
 interface AssetDetailModalProps {
   asset: Asset;
@@ -50,25 +51,15 @@ export const AssetDetailModal: React.FC<AssetDetailModalProps> = ({ asset, onClo
     async function fetchData() {
       setLoading(true);
       try {
-        const [pricesRes, predRes, sentRes] = await Promise.all([
-          fetch(`/api/v1/assets/${asset.ticker}/prices`),
-          fetch(`/api/v1/assets/${asset.ticker}/predictions`),
-          fetch(`/api/v1/assets/${asset.ticker}/sentiment`),
+        const [pData, prData, sData] = await Promise.all([
+          apiJson(`/api/v1/assets/${asset.ticker}/prices`),
+          apiJson(`/api/v1/assets/${asset.ticker}/predictions`),
+          apiJson(`/api/v1/assets/${asset.ticker}/sentiment`),
         ]);
-
-        if (pricesRes.ok) {
-          const pData = await pricesRes.json();
-          setBars(pData.bars || []);
-        }
-        if (predRes.ok) {
-          const prData = await predRes.json();
-          setPrediction(prData.predictionDetail || null);
-        }
-        if (sentRes.ok) {
-          const sData = await sentRes.json();
-          setSocialPosts(sData.recentPosts || []);
-          setNews(sData.recentNews || []);
-        }
+        setBars(pData.bars || []);
+        setPrediction(prData.predictionDetail || null);
+        setSocialPosts(sData.recentPosts || []);
+        setNews(sData.recentNews || []);
       } catch (err) {
         console.error('Failed to load asset details:', err);
       } finally {

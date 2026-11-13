@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { TranslatedText } from './TranslatedText';
+import { apiJson } from '../lib/api';
 import {
   ResponsiveContainer,
   BarChart,
@@ -54,8 +55,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   useEffect(() => {
     async function loadStatus() {
       try {
-        const res = await fetch('/api/v1/sources/status');
-        if (res.ok) setSourceStatus(await res.json());
+        setSourceStatus(await apiJson('/api/v1/sources/status'));
       } catch (err) {
         console.error('Failed to load source status:', err);
       }
@@ -202,7 +202,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     backgroundColor: '#0f172a',
                     borderColor: '#334155',
                     borderRadius: '8px',
-                    color: '#f8fafc',
+                    color: document.documentElement.classList.contains('dark') ? '#f8fafc' : '#0f172a',
                     fontSize: '12px',
                   }}
                   formatter={(val: any) => [`${val > 0 ? '+' : ''}${val}`, 'Sentiment Score']}

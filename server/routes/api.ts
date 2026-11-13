@@ -8,6 +8,10 @@ import { appDb, uuidv4 } from '../db/sqlite';
 import { ExchangeCode, SystemSettings, ExecutiveReport, User, UserRole } from '../../src/types';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import {
+  requirePermission, requireAnyPermission, requireRole, ALL_PERMISSIONS,
+  getEffectivePermissions,
+} from '../rbac';
 
 export const apiRouter = Router();
 
@@ -75,17 +79,6 @@ function authenticate(req: AuthRequest, res: Response, next: NextFunction): void
 
 function requireAuth(req: AuthRequest, res: Response, next: NextFunction): void | Response {
   return authenticate(req, res, next);
-}
-
-function requireRole(...roles: UserRole[]) {
-  return (req: AuthRequest, res: Response, next: NextFunction): void | Response => {
-    const handled = authenticate(req, res, () => {});
-    if (handled) return handled;
-    if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Forbidden', detail: `Insufficient role. Required: ${roles.join(', ')}` });
-    }
-    next();
-  };
 }
 
 function auditLog(actorId: string | undefined, action: string, entity: string, entityId: string | undefined, meta: any) {
@@ -271,7 +264,7 @@ apiRouter.get('/auth/me', requireAuth, (req: AuthRequest, res: Response) => {
   return res.json({ status: 'success', user: req.user });
 });
 
-apiRouter.get('/auth/users', requireRole('admin'), (req: AuthRequest, res: Response) => {
+apiRouter.get('/auth/users', requirePermission('users', 'view'), (req: AuthRequest, res: Response) => {
   const rows = appDb.db.prepare('SELECT id,username,email,role,is_active,created_at FROM users ORDER BY created_at DESC').all() as any[];
   const users: User[] = rows.map(r => ({
     id: r.id, username: r.username, email: r.email, role: r.role as UserRole,
@@ -280,7 +273,7 @@ apiRouter.get('/auth/users', requireRole('admin'), (req: AuthRequest, res: Respo
   return res.json({ status: 'success', users });
 });
 
-apiRouter.patch('/auth/users/:id/role', requireRole('admin'), (req: AuthRequest, res: Response) => {
+apiRouter.patch('/auth/users/:id/role', requireRole(['admin']), (req: AuthRequest, res: Response) => {
   const { role } = (req.body || {}) as { role?: UserRole };
   if (!role || !['admin', 'manager', 'viewer'].includes(role)) {
     return res.status(400).json({ error: 'Invalid role', detail: 'role must be admin, manager or viewer' });
@@ -294,8 +287,102 @@ apiRouter.patch('/auth/users/:id/role', requireRole('admin'), (req: AuthRequest,
   return res.json({ status: 'success', message: 'Role updated', userId: req.params.id, role });
 });
 
+// ---- RBAC management routes ----
+apiRouter.get('/auth/permissions', requireAuth, (req: AuthRequest, res: Response) => {
+  const perms = getEffectivePermissions(appDb.db, req.user!.id);
+  return res.json({ status: 'success', permissions: perms });
+});
+
+apiRouter.get('/auth/permissions/available', requireAuth, requirePermission('permissions', 'view'), (req: AuthRequest, res: Response) => {
+  return res.json({ status: 'success', permissions: ALL_PERMISSIONS });
+});
+
+apiRouter.get('/auth/roles', requireAuth, requirePermission('roles', 'view'), (req: AuthRequest, res: Response) => {
+  const rows = appDb.db.prepare('SELECT id,name,description,is_system,created_at FROM roles ORDER BY name').all() as any[];
+  const roles = rows.map(r => ({
+    id: r.id, name: r.name, description: r.description, isSystem: Boolean(r.is_system), createdAt: r.created_at,
+  }));
+  return res.json({ status: 'success', roles });
+});
+
+apiRouter.get('/auth/roles/:id/permissions', requireAuth, requirePermission('roles', 'view'), (req: AuthRequest, res: Response) => {
+  const role = appDb.db.prepare('SELECT id,name FROM roles WHERE id = ?').get(req.params.id) as any;
+  if (!role) {
+    return res.status(404).json({ error: 'Not found', detail: 'Role not found' });
+  }
+  const rows = appDb.db.prepare(`
+    SELECT p.id, p.resource, p.action, p.label, p.description, rp.granted
+    FROM permissions p
+    LEFT JOIN role_permissions rp ON rp.permission_id = p.id AND rp.role_id = ?
+    ORDER BY p.resource, p.action
+  `).all(req.params.id) as any[];
+  const permissions = rows.map(r => ({
+    id: r.id, resource: r.resource, action: r.action, label: r.label, description: r.description,
+    granted: r.granted !== 0, // default true when no explicit row
+  }));
+  return res.json({ status: 'success', role: { id: role.id, name: role.name }, permissions });
+});
+
+apiRouter.put('/auth/roles/:id/permissions', requireAuth, requirePermission('roles', 'edit'), (req: AuthRequest, res: Response) => {
+  const role = appDb.db.prepare('SELECT id,name FROM roles WHERE id = ?').get(req.params.id) as any;
+  if (!role) {
+    return res.status(404).json({ error: 'Not found', detail: 'Role not found' });
+  }
+  const { permissions } = (req.body || {}) as { permissions?: { id: string; granted: boolean }[] };
+  if (!Array.isArray(permissions)) {
+    return res.status(400).json({ error: 'Invalid body', detail: 'permissions array is required' });
+  }
+  // Prevent removing all permissions from the last admin role (self-lockout guard is advisory)
+  const upsert = appDb.db.prepare(`
+    INSERT OR REPLACE INTO role_permissions (role_id, permission_id, granted) VALUES (?, ?, ?)
+  `);
+  const tx = appDb.db.transaction(() => {
+    for (const p of permissions) {
+      upsert.run(req.params.id, p.id, p.granted ? 1 : 0);
+    }
+  });
+  tx();
+  auditLog(req.user?.id, 'role.update_permissions', 'roles', req.params.id, { count: permissions.length });
+  return res.json({ status: 'success', message: 'Role permissions updated', roleId: req.params.id });
+});
+
+apiRouter.get('/auth/users/:id/permissions', requireAuth, (req: AuthRequest, res: Response) => {
+  const target = appDb.db.prepare('SELECT id,username,role FROM users WHERE id = ?').get(req.params.id) as any;
+  if (!target) {
+    return res.status(404).json({ error: 'Not found', detail: 'User not found' });
+  }
+  // Viewers can only see their own permissions; managers/admins can see anyone's
+  if (req.user!.role === 'viewer' && req.user!.id !== req.params.id) {
+    return res.status(403).json({ error: 'Forbidden', detail: 'Viewers can only view their own permissions' });
+  }
+  const perms = getEffectivePermissions(appDb.db, req.params.id);
+  return res.json({ status: 'success', user: { id: target.id, username: target.username, role: target.role }, permissions: perms });
+});
+
+apiRouter.put('/auth/users/:id/permissions', requireAuth, requirePermission('users', 'edit'), (req: AuthRequest, res: Response) => {
+  const target = appDb.db.prepare('SELECT id,username FROM users WHERE id = ?').get(req.params.id) as any;
+  if (!target) {
+    return res.status(404).json({ error: 'Not found', detail: 'User not found' });
+  }
+  const { permissions } = (req.body || {}) as { permissions?: { id: string; granted: boolean }[] };
+  if (!Array.isArray(permissions)) {
+    return res.status(400).json({ error: 'Invalid body', detail: 'permissions array is required' });
+  }
+  const upsert = appDb.db.prepare(`
+    INSERT OR REPLACE INTO user_permissions (user_id, permission_id, granted) VALUES (?, ?, ?)
+  `);
+  const tx = appDb.db.transaction(() => {
+    for (const p of permissions) {
+      upsert.run(req.params.id, p.id, p.granted ? 1 : 0);
+    }
+  });
+  tx();
+  auditLog(req.user?.id, 'user.update_permissions', 'users', req.params.id, { count: permissions.length });
+  return res.json({ status: 'success', message: 'User permissions updated', userId: req.params.id });
+});
+
 // Assets Endpoints
-apiRouter.get('/assets', (req: Request, res: Response) => {
+apiRouter.get('/assets', requirePermission('assets', 'view'), (req: Request, res: Response) => {
   const exchange = req.query.exchange as ExchangeCode | undefined;
   let assets = marketRepo.getAllAssets();
   if (exchange) {
@@ -307,7 +394,7 @@ apiRouter.get('/assets', (req: Request, res: Response) => {
   });
 });
 
-apiRouter.get('/assets/:ticker', (req: Request, res: Response) => {
+apiRouter.get('/assets/:ticker', requirePermission('assets', 'view'), (req: Request, res: Response) => {
   const asset = marketRepo.getAsset(req.params.ticker);
   if (!asset) {
     return res.status(404).json({ error: `Asset with ticker ${req.params.ticker} not found` });
@@ -315,7 +402,7 @@ apiRouter.get('/assets/:ticker', (req: Request, res: Response) => {
   res.json(asset);
 });
 
-apiRouter.get('/assets/:ticker/prices', (req: Request, res: Response) => {
+apiRouter.get('/assets/:ticker/prices', requirePermission('assets', 'view'), (req: Request, res: Response) => {
   const asset = marketRepo.getAsset(req.params.ticker);
   if (!asset) {
     return res.status(404).json({ error: `Asset with ticker ${req.params.ticker} not found` });
@@ -332,7 +419,7 @@ apiRouter.get('/assets/:ticker/prices', (req: Request, res: Response) => {
   });
 });
 
-apiRouter.get('/assets/:ticker/sentiment', (req: Request, res: Response) => {
+apiRouter.get('/assets/:ticker/sentiment', requireAnyPermission([{ resource: 'social', action: 'view' }, { resource: 'news', action: 'view' }]), (req: Request, res: Response) => {
   const ticker = req.params.ticker;
   if (!marketRepo.getAsset(ticker)) {
     return res.status(404).json({ error: `Asset with ticker ${ticker} not found` });
@@ -351,7 +438,7 @@ apiRouter.get('/assets/:ticker/sentiment', (req: Request, res: Response) => {
   });
 });
 
-apiRouter.get('/assets/:ticker/predictions', (req: Request, res: Response) => {
+apiRouter.get('/assets/:ticker/predictions', requirePermission('predictions', 'view'), (req: Request, res: Response) => {
   const ticker = req.params.ticker;
   if (!marketRepo.getAsset(ticker)) {
     return res.status(404).json({ error: `Asset with ticker ${ticker} not found` });
@@ -361,7 +448,7 @@ apiRouter.get('/assets/:ticker/predictions', (req: Request, res: Response) => {
 });
 
 // Exchanges Endpoints
-apiRouter.get('/exchanges', (req: Request, res: Response) => {
+apiRouter.get('/exchanges', requirePermission('exchanges', 'view'), (req: Request, res: Response) => {
   const allAssets = marketRepo.getAllAssets();
   const hkAssets = allAssets.filter(a => a.exchange === 'HKEX');
   const krAssets = allAssets.filter(a => a.exchange === 'KRX');
@@ -394,7 +481,7 @@ apiRouter.get('/exchanges', (req: Request, res: Response) => {
   });
 });
 
-apiRouter.get('/exchanges/:exchange/overview', (req: Request, res: Response) => {
+apiRouter.get('/exchanges/:exchange/overview', requirePermission('exchanges', 'view'), (req: Request, res: Response) => {
   const ex = req.params.exchange.toUpperCase() as ExchangeCode;
   if (!VALID_EXCHANGES.includes(ex)) {
     return res.status(404).json({ error: `Exchange ${req.params.exchange} not supported. Expected HKEX or KRX.` });
@@ -415,7 +502,7 @@ apiRouter.get('/exchanges/:exchange/overview', (req: Request, res: Response) => 
   });
 });
 
-apiRouter.get('/exchanges/:exchange/rankings', (req: Request, res: Response) => {
+apiRouter.get('/exchanges/:exchange/rankings', requirePermission('exchanges', 'view'), (req: Request, res: Response) => {
   const ex = req.params.exchange.toUpperCase() as ExchangeCode;
   if (!VALID_EXCHANGES.includes(ex)) {
     return res.status(404).json({ error: `Exchange ${req.params.exchange} not supported. Expected HKEX or KRX.` });
@@ -444,7 +531,7 @@ apiRouter.get('/exchanges/:exchange/rankings', (req: Request, res: Response) => 
 });
 
 // Social Endpoints
-apiRouter.get('/social/posts', (req: Request, res: Response) => {
+apiRouter.get('/social/posts', requirePermission('social', 'view'), (req: Request, res: Response) => {
   const ticker = req.query.ticker as string | undefined;
   const exchange = req.query.exchange as ExchangeCode | undefined;
   const platform = req.query.platform as string | undefined;
@@ -456,7 +543,7 @@ apiRouter.get('/social/posts', (req: Request, res: Response) => {
   });
 });
 
-apiRouter.get('/social/sentiment', (req: Request, res: Response) => {
+apiRouter.get('/social/sentiment', requirePermission('social', 'view'), (req: Request, res: Response) => {
   const allPosts = socialRepo.getAllPosts();
   const platformDistribution = {
     LIHKG: allPosts.filter(p => p.platform === 'LIHKG').length,
@@ -480,7 +567,7 @@ apiRouter.get('/social/sentiment', (req: Request, res: Response) => {
   });
 });
 
-apiRouter.get('/social/trends', (req: Request, res: Response) => {
+apiRouter.get('/social/trends', requirePermission('social', 'view'), (req: Request, res: Response) => {
   const assets = marketRepo.getAllAssets();
   const trending = assets
     .map(a => ({
@@ -497,7 +584,7 @@ apiRouter.get('/social/trends', (req: Request, res: Response) => {
   res.json({ trending });
 });
 
-apiRouter.get('/social/summary', (req: Request, res: Response) => {
+apiRouter.get('/social/summary', requirePermission('social', 'view'), (req: Request, res: Response) => {
   const allPosts = socialRepo.getAllPosts();
   const platformDistribution = {
     LIHKG: allPosts.filter(p => p.platform === 'LIHKG').length,
@@ -522,7 +609,7 @@ apiRouter.get('/social/summary', (req: Request, res: Response) => {
 });
 
 // News Endpoints
-apiRouter.get('/news', (req: Request, res: Response) => {
+apiRouter.get('/news', requirePermission('news', 'view'), (req: Request, res: Response) => {
   const ticker = req.query.ticker as string | undefined;
   const exchange = req.query.exchange as ExchangeCode | undefined;
   const news = newsRepo.getAllNews({ ticker, exchange });
@@ -535,7 +622,7 @@ apiRouter.get('/news', (req: Request, res: Response) => {
   });
 });
 
-apiRouter.get('/news/articles', (req: Request, res: Response) => {
+apiRouter.get('/news/articles', requirePermission('news', 'view'), (req: Request, res: Response) => {
   const ticker = req.query.ticker as string | undefined;
   const exchange = req.query.exchange as ExchangeCode | undefined;
   const news = newsRepo.getAllNews({ ticker, exchange });
@@ -548,7 +635,7 @@ apiRouter.get('/news/articles', (req: Request, res: Response) => {
   });
 });
 
-apiRouter.get('/news/summary', (req: Request, res: Response) => {
+apiRouter.get('/news/summary', requirePermission('news', 'view'), (req: Request, res: Response) => {
   const allNews = newsRepo.getAllNews();
   const publisherBreakdown: Record<string, number> = {};
   for (const n of allNews) {
@@ -562,7 +649,7 @@ apiRouter.get('/news/summary', (req: Request, res: Response) => {
   });
 });
 
-apiRouter.get('/pipeline/status', (req: Request, res: Response) => {
+apiRouter.get('/pipeline/status', requirePermission('pipeline', 'view'), (req: Request, res: Response) => {
   res.json({
     agents: orchestrator.getAgentStates(),
     history: orchestrator.getJobHistory(),
@@ -570,7 +657,7 @@ apiRouter.get('/pipeline/status', (req: Request, res: Response) => {
   });
 });
 
-apiRouter.get('/news/:id', (req: Request, res: Response) => {
+apiRouter.get('/news/:id', requirePermission('news', 'view'), (req: Request, res: Response) => {
   const article = newsRepo.getArticleById(req.params.id);
   if (!article) {
     return res.status(404).json({ error: `News article ${req.params.id} not found` });
@@ -579,7 +666,7 @@ apiRouter.get('/news/:id', (req: Request, res: Response) => {
 });
 
 // Predictions Endpoints
-apiRouter.get('/predictions', (req: Request, res: Response) => {
+apiRouter.get('/predictions', requirePermission('predictions', 'view'), (req: Request, res: Response) => {
   const assets = marketRepo.getAllAssets();
   const predictions = assets.map(a => {
     const evalRes = mlEngine.evaluateModelsForTicker(a.ticker);
@@ -592,7 +679,7 @@ apiRouter.get('/predictions', (req: Request, res: Response) => {
   });
 });
 
-apiRouter.post('/predictions/run', requireRole('admin', 'manager'), (req: Request, res: Response) => {
+apiRouter.post('/predictions/run', requirePermission('predictions', 'run'), (req: Request, res: Response) => {
   orchestrator.syncAssetIntelligence();
   res.json({
     status: 'success',
@@ -601,7 +688,7 @@ apiRouter.post('/predictions/run', requireRole('admin', 'manager'), (req: Reques
   });
 });
 
-apiRouter.get('/predictions/performance', (req: Request, res: Response) => {
+apiRouter.get('/predictions/performance', requirePermission('predictions', 'view'), (req: Request, res: Response) => {
   // Aggregate model performance across all 10 assets.
   // Raw MAE/RMSE are reported per exchange in that exchange's native currency, because
   // averaging HKD and KRW absolute errors together is not meaningful. The normalized
@@ -707,7 +794,7 @@ apiRouter.get('/predictions/performance', (req: Request, res: Response) => {
   });
 });
 
-apiRouter.get('/predictions/backtesting', (req: Request, res: Response) => {
+apiRouter.get('/predictions/backtesting', requirePermission('predictions', 'view'), (req: Request, res: Response) => {
   const ticker = (req.query.ticker as string) || '0700.HK';
   const asset = marketRepo.getAsset(ticker);
   if (!asset) {
@@ -738,7 +825,7 @@ apiRouter.get('/predictions/backtesting', (req: Request, res: Response) => {
 });
 
 // Ingestion & Agent Endpoints
-apiRouter.post('/ingestion/run', requireRole('admin'), async (req: Request, res: Response) => {
+apiRouter.post('/ingestion/run', requirePermission('pipeline', 'run'), async (req: Request, res: Response) => {
   try {
     const result = await orchestrator.runFullPipeline();
     res.json(result);
@@ -747,20 +834,20 @@ apiRouter.post('/ingestion/run', requireRole('admin'), async (req: Request, res:
   }
 });
 
-apiRouter.get('/ingestion/status', (req: Request, res: Response) => {
+apiRouter.get('/ingestion/status', requirePermission('pipeline', 'view'), (req: Request, res: Response) => {
   res.json({
     isRunning: orchestrator.isPipelineRunning(),
     agents: orchestrator.getAgentStates(),
   });
 });
 
-apiRouter.get('/ingestion/history', (req: Request, res: Response) => {
+apiRouter.get('/ingestion/history', requirePermission('pipeline', 'view'), (req: Request, res: Response) => {
   res.json({
     history: orchestrator.getJobHistory(),
   });
 });
 
-apiRouter.post('/agents/run', requireRole('admin'), async (req: Request, res: Response) => {
+apiRouter.post('/agents/run', requirePermission('pipeline', 'run'), async (req: Request, res: Response) => {
   try {
     const result = await orchestrator.runFullPipeline();
     res.json(result);
@@ -769,14 +856,14 @@ apiRouter.post('/agents/run', requireRole('admin'), async (req: Request, res: Re
   }
 });
 
-apiRouter.get('/agents/status', (req: Request, res: Response) => {
+apiRouter.get('/agents/status', requirePermission('pipeline', 'view'), (req: Request, res: Response) => {
   res.json({
     agents: orchestrator.getAgentStates(),
   });
 });
 
 // Reports Endpoints
-apiRouter.get('/reports', (req: Request, res: Response) => {
+apiRouter.get('/reports', requirePermission('reports', 'view'), (req: Request, res: Response) => {
   // Refresh all standing briefings so displayed metrics always match current engine state
   const hk = generatedReports.find(r => r.id === 'rep_hkex_latest');
   if (hk) Object.assign(hk, buildExecutiveReport('HKEX'), { id: 'rep_hkex_latest' });
@@ -791,7 +878,7 @@ apiRouter.get('/reports', (req: Request, res: Response) => {
   });
 });
 
-apiRouter.post('/reports/generate', requireRole('admin', 'manager'), (req: Request, res: Response) => {
+apiRouter.post('/reports/generate', requirePermission('reports', 'create'), (req: Request, res: Response) => {
   const exchange = (req.body?.exchange as ExchangeCode | 'ALL') || 'ALL';
   if (exchange !== 'ALL' && !VALID_EXCHANGES.includes(exchange)) {
     return res.status(400).json({ error: `Invalid exchange '${exchange}'. Expected one of: ALL, HKEX, KRX` });
@@ -804,7 +891,7 @@ apiRouter.post('/reports/generate', requireRole('admin', 'manager'), (req: Reque
   res.json(newReport);
 });
 
-apiRouter.get('/reports/:id/download', (req: Request, res: Response) => {
+apiRouter.get('/reports/:id/download', requirePermission('reports', 'view'), (req: Request, res: Response) => {
   const report = generatedReports.find(r => r.id === req.params.id);
   if (!report) {
     return res.status(404).json({ error: `Report ${req.params.id} not found` });
@@ -827,7 +914,7 @@ apiRouter.get('/reports/:id/download', (req: Request, res: Response) => {
 });
 
 // Settings Endpoints
-apiRouter.get('/settings', (req: Request, res: Response) => {
+apiRouter.get('/settings', requirePermission('settings', 'view'), (req: Request, res: Response) => {
   // Mask sensitive keys in response
   const masked = {
     ...currentSettings,
@@ -838,7 +925,7 @@ apiRouter.get('/settings', (req: Request, res: Response) => {
   res.json(masked);
 });
 
-apiRouter.put('/settings', requireRole('admin', 'manager'), (req: AuthRequest, res: Response) => {
+apiRouter.put('/settings', requirePermission('settings', 'edit'), (req: AuthRequest, res: Response) => {
   const body = (req.body || {}) as Partial<SystemSettings>;
   if (body.apifyApiToken && !body.apifyApiToken.includes('••••')) {
     currentSettings.apifyApiToken = body.apifyApiToken;
@@ -890,7 +977,7 @@ apiRouter.put('/settings', requireRole('admin', 'manager'), (req: AuthRequest, r
 // Source status, freshness and live-vs-fallback classification.
 // Mode is 'live' only when a working external integration actually served the records
 // currently in the store; otherwise it is 'local-fallback'.
-apiRouter.get('/sources/status', (req: Request, res: Response) => {
+apiRouter.get('/sources/status', requireAuth, (req: Request, res: Response) => {
   const nowIso = new Date().toISOString();
   const minutesSince = (iso: string | null | undefined): number | null =>
     iso ? Math.round((Date.now() - Date.parse(iso)) / 60000) : null;

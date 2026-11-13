@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useCallback, useEffect, useState } from 'react';
 import { LanguageCode, LanguagePrefs } from '../types';
+import { apiJson } from '../lib/api';
 
 interface LanguageContextType {
   prefs: LanguagePrefs;
@@ -18,12 +19,9 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
     async function load() {
       try {
-        const res = await fetch('/api/v1/settings');
-        if (res.ok && mounted) {
-          const data = await res.json();
-          if (data && data.languagePrefs) {
-            setPrefsState({ ...DEFAULT_PREFS, ...data.languagePrefs });
-          }
+        const data = await apiJson('/api/v1/settings');
+        if (mounted && data && data.languagePrefs) {
+          setPrefsState({ ...DEFAULT_PREFS, ...data.languagePrefs });
         }
       } catch (err) {
         console.error('Failed to load language preferences:', err);
@@ -39,9 +37,8 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     (next: Partial<LanguagePrefs>) => {
       setPrefsState(prev => {
         const updated = { ...prev, ...next };
-        fetch('/api/v1/settings', {
+        apiJson('/api/v1/settings', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ languagePrefs: updated }),
         }).catch(err => console.error('Failed to save language preferences:', err));
         return updated;

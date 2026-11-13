@@ -91,6 +91,7 @@ All application records now flow through SQLite (`hengseng.db`) and are backed b
 - `news_articles` — news intelligence (seeded from `news.json`)
 - `users` — authentication (admin/manager/viewer seeded)
 - `settings` — system settings (masked secrets)
+- `roles`, `permissions`, `role_permissions`, `user_permissions` — RBAC model (granular permissions, role grants, user overrides)
 - `reports`, `ingestion_jobs`, `agent_states`, `audit_logs` — operational records
 
 Seed data is used **only** for initial database population on first run; the application thereafter reads from and writes to the database. No `localStorage` or frontend arrays substitute for backend persistence.
@@ -99,21 +100,49 @@ Seed data is used **only** for initial database population on first run; the app
 
 ## 7. Authentication / RBAC Summary
 
-| Route | Method | Required Role |
-|-------|--------|---------------|
-| `/api/v1/auth/register` | POST | public |
-| `/api/v1/auth/login` | POST | public |
-| `/api/v1/auth/me` | GET | any authenticated |
-| `/api/v1/auth/users` | GET | admin |
-| `/api/v1/auth/users/:id/role` | PATCH | admin |
-| `/api/v1/settings` | PUT | admin, manager |
-| `/api/v1/agents/run` | POST | admin |
-| `/api/v1/ingestion/run` | POST | admin |
-| `/api/v1/predictions/run` | POST | admin, manager |
-| `/api/v1/reports/generate` | POST | admin, manager |
-| All GET routes | GET | public (read-only data) |
+RBAC is **database-driven and configurable**: permissions live in the `permissions` table, granted to roles via `role_permissions`, and overridable per-user via `user_permissions`. Authorized users can manage roles and permissions through the `/permissions` UI (`roles:edit` / `users:edit`).
 
-Seeded demo accounts: `admin` / `manager` / `viewer` (password `admin123`). Role enforcement is applied on both frontend (UI gating) and backend (middleware).
+| Route | Method | Required Permission | Notes |
+|-------|--------|---------------------|-------|
+| `/api/v1/auth/register` | POST | public | — |
+| `/api/v1/auth/login` | POST | public | — |
+| `/api/v1/auth/me` | GET | authenticated | — |
+| `/api/v1/auth/permissions` | GET | authenticated | own effective permissions |
+| `/api/v1/auth/permissions/available` | GET | `permissions:view` | list all permissions |
+| `/api/v1/auth/users` | GET | `users:view` | — |
+| `/api/v1/auth/users/:id/role` | PATCH | `users:edit` | admin-only effectively |
+| `/api/v1/auth/users/:id/permissions` | GET | authenticated (self) / `users:edit` (others) | — |
+| `/api/v1/auth/users/:id/permissions` | PUT | `users:edit` | — |
+| `/api/v1/auth/roles` | GET | `roles:view` | — |
+| `/api/v1/auth/roles/:id/permissions` | GET | `roles:view` | — |
+| `/api/v1/auth/roles/:id/permissions` | PUT | `roles:edit` | — |
+| `/api/v1/settings` | GET | `settings:view` | — |
+| `/api/v1/settings` | PUT | `settings:edit` | — |
+| `/api/v1/assets` | GET | `assets:view` | — |
+| `/api/v1/assets/:ticker` | GET | `assets:view` | — |
+| `/api/v1/assets/:ticker/prices` | GET | `assets:view` | — |
+| `/api/v1/assets/:ticker/predictions` | GET | `predictions:view` | — |
+| `/api/v1/assets/:ticker/sentiment` | GET | `social:view` or `news:view` | — |
+| `/api/v1/exchanges` | GET | `exchanges:view` | — |
+| `/api/v1/social/*` | GET | `social:view` | — |
+| `/api/v1/news/*` | GET | `news:view` | — |
+| `/api/v1/predictions` | GET | `predictions:view` | — |
+| `/api/v1/predictions/performance` | GET | `predictions:view` | — |
+| `/api/v1/predictions/backtesting` | GET | `predictions:view` | — |
+| `/api/v1/predictions/run` | POST | `predictions:run` | — |
+| `/api/v1/pipeline/*` | GET | `pipeline:view` | — |
+| `/api/v1/agents/run` | POST | `pipeline:run` | — |
+| `/api/v1/ingestion/run` | POST | `pipeline:run` | — |
+| `/api/v1/reports` | GET | `reports:view` | — |
+| `/api/v1/reports/generate` | POST | `reports:create` | — |
+| `/api/v1/reports/:id/download` | GET | `reports:view` | — |
+
+Default role grants:
+- **admin:** all 24 permissions.
+- **manager:** operational access — assets/exchanges/social/news/predictions/pipeline/reports/settings view; predictions/pipeline/reports create; settings/reports approve. No user/role management.
+- **viewer:** read-only — assets/exchanges/social/news/predictions/pipeline/reports/settings view only.
+
+Seeded demo accounts: `admin` / `manager` / `viewer` (password `admin123`). Permission enforcement is applied on both frontend (UI elements hidden via `PermissionGate`) and backend (middleware). Unknown routes return JSON 401/403, never HTML stack traces.
 
 ---
 
@@ -125,9 +154,9 @@ Implemented via Tailwind responsive classes across all pages (320px → 1920px).
 
 ## 9. Files Changed (this audit)
 
-- **New:** `server/db/sqlite.ts`, `server/data/marketGenerators.ts`, `server/data/sentiment.ts`, `server/__tests__/backend.test.ts`, `src/lib/api.ts`, `src/contexts/AuthContext.tsx`, `src/components/LoginView.tsx`, `src/lib/api.test.ts`, `src/components/LoginView.test.tsx`, `src/test/setup.ts`, `src/test/jest-dom-globals.d.ts`, `vitest.config.ts`, `jest.config.cjs`, `playwright.config.ts`, `tests/e2e/app.spec.ts`, `scripts/launch_api.bat`, `scripts/launch_server.bat`, `scripts/test_sqlite.ts`, `scripts/test_import.ts`, `scripts/test_listen.ts`, `scripts/test_startserver.ts`, `scripts/start_api_only.ts`
-- **Modified:** `server.ts`, `server/routes/api.ts`, `server/data/marketData.ts`, `server/data/socialScraper.ts`, `server/data/newsEngine.ts`, `src/App.tsx`, `src/components/Navigation.tsx`, `src/components/Sidebar.tsx`, `src/components/SettingsView.tsx`, `src/components/OverviewView.tsx`, `src/types/index.ts`, `package.json`, `tsconfig.json`
-- **Em-dash → hyphen:** `src/lib/api.ts`, `src/components/AssetDetailModal.tsx`, `BacktestingView.tsx`, `DataSourcesView.tsx`, `ModelPerformanceView.tsx`, `PipelineMonitorView.tsx`, `OverviewView.tsx`, `SettingsView.tsx`, `server/routes/api.ts`, `server/agents/orchestrator.ts`, `scripts/e2e-live-test.cjs`
+**New:** `server/db/sqlite.ts`, `server/data/marketGenerators.ts`, `server/data/sentiment.ts`, `server/rbac.ts`, `server/__tests__/backend.test.ts`, `src/lib/api.ts`, `src/lib/permissions.tsx`, `src/contexts/AuthContext.tsx`, `src/components/LoginView.tsx`, `src/components/RolesAndPermissionsView.tsx`, `src/lib/api.test.ts`, `src/components/LoginView.test.tsx`, `src/test/setup.ts`, `src/test/jest-dom-globals.d.ts`, `vitest.config.ts`, `jest.config.cjs`, `playwright.config.ts`, `tests/e2e/app.spec.ts`, `scripts/launch_api.bat`, `scripts/launch_server.bat`, `scripts/test_sqlite.ts`, `scripts/test_import.ts`, `scripts/test_listen.ts`, `scripts/test_startserver.ts`, `scripts/start_api_only.ts`
+**Modified:** `server.ts`, `server/routes/api.ts`, `server/data/marketData.ts`, `server/data/socialScraper.ts`, `server/data/newsEngine.ts`, `src/App.tsx`, `src/components/Navigation.tsx`, `src/components/Sidebar.tsx`, `src/components/SettingsView.tsx`, `src/components/OverviewView.tsx`, `src/types/index.ts`, `package.json`, `tsconfig.json`
+**Em-dash → hyphen:** `src/lib/api.ts`, `src/components/AssetDetailModal.tsx`, `BacktestingView.tsx`, `DataSourcesView.tsx`, `ModelPerformanceView.tsx`, `PipelineMonitorView.tsx`, `OverviewView.tsx`, `SettingsView.tsx`, `server/routes/api.ts`, `server/agents/orchestrator.ts`, `scripts/e2e-live-test.cjs`
 
 ---
 

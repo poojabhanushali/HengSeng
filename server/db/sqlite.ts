@@ -226,6 +226,41 @@ export class AppDatabase {
         meta TEXT,
         created_at TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS roles (
+        id TEXT PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL,
+        description TEXT,
+        is_system INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS permissions (
+        id TEXT PRIMARY KEY,
+        resource TEXT NOT NULL,
+        action TEXT NOT NULL,
+        label TEXT,
+        description TEXT,
+        UNIQUE(resource, action)
+      );
+
+      CREATE TABLE IF NOT EXISTS role_permissions (
+        role_id TEXT NOT NULL,
+        permission_id TEXT NOT NULL,
+        granted INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY (role_id, permission_id),
+        FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE,
+        FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
+      );
+
+      CREATE TABLE IF NOT EXISTS user_permissions (
+        user_id TEXT NOT NULL,
+        permission_id TEXT NOT NULL,
+        granted INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY (user_id, permission_id),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
+      );
     `);
   }
 
@@ -401,6 +436,74 @@ export class AppDatabase {
       db.prepare(`INSERT INTO users (id,username,email,password_hash,role,is_active,created_at) VALUES (?,?,?,?,?,?,?)`)
         .run(uuidv4(), 'viewer', 'viewer@hengseng.local', hash, 'viewer', 1, new Date().toISOString());
     }
+
+    // Seed RBAC roles, permissions, and default role grants
+    const permCount = this.selectOne<{ c: number }>('SELECT COUNT(*) AS c FROM permissions')!.c;
+    if (permCount === 0) {
+      const DEFAULT_PERMISSIONS: { id: string; resource: string; action: string; label: string; description: string }[] = [
+        { id: 'perm_assets_view', resource: 'assets', action: 'view', label: 'View Assets', description: 'View asset listings and details' },
+        { id: 'perm_assets_create', resource: 'assets', action: 'create', label: 'Create Assets', description: 'Create new assets' },
+        { id: 'perm_assets_edit', resource: 'assets', action: 'edit', label: 'Edit Assets', description: 'Edit asset details' },
+        { id: 'perm_assets_delete', resource: 'assets', action: 'delete', label: 'Delete Assets', description: 'Delete assets' },
+        { id: 'perm_exchanges_view', resource: 'exchanges', action: 'view', label: 'View Exchanges', description: 'View exchange information' },
+        { id: 'perm_social_view', resource: 'social', action: 'view', label: 'View Social Sentiment', description: 'View social media sentiment data' },
+        { id: 'perm_news_view', resource: 'news', action: 'view', label: 'View News', description: 'View news intelligence' },
+        { id: 'perm_predictions_view', resource: 'predictions', action: 'view', label: 'View Predictions', description: 'View price predictions' },
+        { id: 'perm_predictions_run', resource: 'predictions', action: 'run', label: 'Run Predictions', description: 'Regenerate price predictions' },
+        { id: 'perm_pipeline_view', resource: 'pipeline', action: 'view', label: 'View Pipeline', description: 'View pipeline status and agent states' },
+        { id: 'perm_pipeline_run', resource: 'pipeline', action: 'run', label: 'Run Pipeline', description: 'Execute the full data pipeline' },
+        { id: 'perm_reports_view', resource: 'reports', action: 'view', label: 'View Reports', description: 'View executive reports' },
+        { id: 'perm_reports_create', resource: 'reports', action: 'create', label: 'Create Reports', description: 'Generate new reports' },
+        { id: 'perm_reports_approve', resource: 'reports', action: 'approve', label: 'Approve Reports', description: 'Approve/publish reports' },
+        { id: 'perm_settings_view', resource: 'settings', action: 'view', label: 'View Settings', description: 'View system settings' },
+        { id: 'perm_settings_edit', resource: 'settings', action: 'edit', label: 'Edit Settings', description: 'Edit system settings' },
+        { id: 'perm_users_view', resource: 'users', action: 'view', label: 'View Users', description: 'View user accounts' },
+        { id: 'perm_users_create', resource: 'users', action: 'create', label: 'Create Users', description: 'Create new user accounts' },
+        { id: 'perm_users_edit', resource: 'users', action: 'edit', label: 'Edit Users', description: 'Edit user accounts' },
+        { id: 'perm_users_delete', resource: 'users', action: 'delete', label: 'Delete Users', description: 'Delete user accounts' },
+        { id: 'perm_roles_view', resource: 'roles', action: 'view', label: 'View Roles', description: 'View roles and permissions' },
+        { id: 'perm_roles_edit', resource: 'roles', action: 'edit', label: 'Edit Roles', description: 'Edit role permissions' },
+        { id: 'perm_permissions_view', resource: 'permissions', action: 'view', label: 'View Permissions', description: 'View available permissions' },
+      ];
+
+      const DEFAULT_ROLES: { id: string; name: string; description: string }[] = [
+        { id: 'role_admin', name: 'admin', description: 'Full system access' },
+        { id: 'role_manager', name: 'manager', description: 'Operational access without user/role management' },
+        { id: 'role_viewer', name: 'viewer', description: 'Read-only access' },
+      ];
+
+      const ROLE_PERMISSIONS: Record<string, string[]> = {
+        role_admin: DEFAULT_PERMISSIONS.map(p => p.id),
+        role_manager: [
+          'perm_assets_view', 'perm_exchanges_view', 'perm_social_view', 'perm_news_view',
+          'perm_predictions_view', 'perm_predictions_run', 'perm_pipeline_view', 'perm_pipeline_run',
+          'perm_reports_view', 'perm_reports_create', 'perm_reports_approve',
+          'perm_settings_view', 'perm_settings_edit',
+        ],
+        role_viewer: [
+          'perm_assets_view', 'perm_exchanges_view', 'perm_social_view', 'perm_news_view',
+          'perm_predictions_view', 'perm_pipeline_view', 'perm_reports_view', 'perm_settings_view',
+        ],
+      };
+
+      const now = new Date().toISOString();
+      const insertPerm = db.prepare(`INSERT OR IGNORE INTO permissions (id,resource,action,label,description) VALUES (@id,@resource,@action,@label,@description)`);
+      const insertRole = db.prepare(`INSERT OR IGNORE INTO roles (id,name,description,is_system,created_at) VALUES (@id,@name,@description,1,@now)`);
+      const insertRolePerm = db.prepare(`INSERT OR IGNORE INTO role_permissions (role_id,permission_id,granted) VALUES (@roleId,@permId,1)`);
+
+      const tx = db.transaction(() => {
+        for (const p of DEFAULT_PERMISSIONS) insertPerm.run(p);
+        for (const r of DEFAULT_ROLES) insertRole.run({ ...r, now });
+        for (const [roleId, permIds] of Object.entries(ROLE_PERMISSIONS)) {
+          for (const permId of permIds) {
+            insertRolePerm.run({ roleId, permId });
+          }
+        }
+      });
+      tx();
+    }
+
+    // Link users to roles via role column (already seeded). Ensure user_permissions table is empty by default (no overrides).
   }
 
   // ------------------------------------------------------------------

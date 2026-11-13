@@ -73,26 +73,26 @@ describe('API contracts', () => {
   });
 
   it('assets list', async () => {
-    const res = await request(app).get('/api/v1/assets');
+    const res = await request(app).get('/api/v1/assets').set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
     expect(res.body.count).toBe(10);
   });
 
   it('asset prices', async () => {
-    const res = await request(app).get('/api/v1/assets/0700.HK/prices');
+    const res = await request(app).get('/api/v1/assets/0700.HK/prices').set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.bars)).toBe(true);
     expect(res.body.bars.length).toBeGreaterThan(0);
   });
 
   it('predictions performance', async () => {
-    const res = await request(app).get('/api/v1/predictions/performance');
+    const res = await request(app).get('/api/v1/predictions/performance').set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.leaderboard)).toBe(true);
   });
 
   it('sources status', async () => {
-    const res = await request(app).get('/api/v1/sources/status');
+    const res = await request(app).get('/api/v1/sources/status').set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.sources)).toBe(true);
   });

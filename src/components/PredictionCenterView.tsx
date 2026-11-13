@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Asset, PredictionDetail, SentimentDirection } from '../types';
 import { TrendingUp, TrendingDown, RefreshCw, Sparkles, ArrowRight } from 'lucide-react';
+import { apiJson } from '../lib/api';
 
 interface PredictionCenterViewProps {
   assets: Asset[];
@@ -18,7 +19,7 @@ export const PredictionCenterView: React.FC<PredictionCenterViewProps> = ({
   const handleRetrain = async () => {
     setRetraining(true);
     try {
-      await fetch('/api/v1/predictions/run', { method: 'POST' });
+      await apiJson('/api/v1/predictions/run', { method: 'POST' });
       onRefreshPredictions();
     } catch (err) {
       console.error('Failed to trigger prediction run:', err);

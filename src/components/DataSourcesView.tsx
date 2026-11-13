@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { apiJson } from '../lib/api';
 
 interface SourceStatus {
   id: string;
@@ -39,15 +40,11 @@ export const DataSourcesView: React.FC = () => {
     async function load() {
       try {
         const [settingsRes, statusRes] = await Promise.all([
-          fetch('/api/v1/settings'),
-          fetch('/api/v1/sources/status'),
+          apiJson('/api/v1/settings'),
+          apiJson('/api/v1/sources/status'),
         ]);
-        if (settingsRes.ok) setSettings(await settingsRes.json());
-        if (statusRes.ok) {
-          setStatus(await statusRes.json());
-        } else {
-          setLoadError(`Source status endpoint returned HTTP ${statusRes.status}`);
-        }
+        setSettings(settingsRes);
+        setStatus(statusRes);
       } catch (err: any) {
         setLoadError(err?.message || 'Failed to load source status');
         console.error('Failed to load source status:', err);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ModelPerformance } from '../types';
 import { Cpu, CheckCircle2, ShieldCheck, ArrowRight, BarChart2 } from 'lucide-react';
+import { apiJson } from '../lib/api';
 import {
   ResponsiveContainer,
   BarChart,
@@ -21,12 +22,9 @@ export const ModelPerformanceView: React.FC = () => {
     async function loadPerformance() {
       setLoading(true);
       try {
-        const res = await fetch('/api/v1/predictions/performance');
-        if (res.ok) {
-          const data = await res.json();
-          setLeaderboard(data.leaderboard || []);
-          setMeta(data);
-        }
+        const data = await apiJson('/api/v1/predictions/performance');
+        setLeaderboard(data.leaderboard || []);
+        setMeta(data);
       } catch (err) {
         console.error('Failed to load model performance:', err);
       } finally {

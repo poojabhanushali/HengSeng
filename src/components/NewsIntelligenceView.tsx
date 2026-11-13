@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NewsArticle, ExchangeCode } from '../types';
 import { Newspaper, Search, ExternalLink, ArrowRight, Sparkles } from 'lucide-react';
 import { TranslatedText } from './TranslatedText';
+import { apiJson } from '../lib/api';
 
 export const NewsIntelligenceView: React.FC = () => {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
@@ -14,19 +15,13 @@ export const NewsIntelligenceView: React.FC = () => {
     async function loadNews() {
       setLoading(true);
       try {
-        const [res, statusRes] = await Promise.all([
-          fetch('/api/v1/news'),
-          fetch('/api/v1/sources/status'),
+        const [data, status] = await Promise.all([
+          apiJson('/api/v1/news'),
+          apiJson('/api/v1/sources/status'),
         ]);
-        if (res.ok) {
-          const data = await res.json();
-          setArticles(data.news || []);
-        }
-        if (statusRes.ok) {
-          const status = await statusRes.json();
-          const exa = (status.sources || []).find((s: any) => s.id === 'exa_news');
-          setNewsSourceMode(exa?.mode === 'live' ? 'live' : 'local-fallback');
-        }
+        setArticles(data.news || []);
+        const exa = (status.sources || []).find((s: any) => s.id === 'exa_news');
+        setNewsSourceMode(exa?.mode === 'live' ? 'live' : 'local-fallback');
       } catch (err) {
         console.error('Failed to load news articles:', err);
       } finally {
