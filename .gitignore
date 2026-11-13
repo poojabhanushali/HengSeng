@@ -22,3 +22,7 @@ node_modules/
 dist/
 .venv/
 __pycache__/
+
+hengseng.db
+hengseng.db-wal
+hengseng.db-shm
